@@ -1,6 +1,6 @@
 ---
 - name: Cisco FMC/FTD Automation Orchestrator
-  hosts: fmc
+  hosts: fmc_hosts
   gather_facts: false
   connection: httpapi
 
