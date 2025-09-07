@@ -1,0 +1,9 @@
+---
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that: ["policy_name is defined"]
+    fail_msg: "policy_name required."
+
+- name: Capture pre-change snapshot marker (timestamp)
+  ansible.builtin.set_fact:
+    uat_started_at: "{ lookup('ansible.builtin.pipe','date +%Y-%m-%d_%H-%M-%S') }"

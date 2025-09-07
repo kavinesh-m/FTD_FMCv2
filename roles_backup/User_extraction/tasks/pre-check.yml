@@ -1,0 +1,27 @@
+---
+- name: Display extraction scope
+  ansible.builtin.debug:
+    msg: "User/Role Extraction for: {{ target_system | upper }}"
+
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that:
+      - target_system in ['fmc', 'ftd', 'both']
+      - ansible_host is defined
+      - ansible_user is defined
+      - ansible_password is defined
+    fail_msg: "Missing or invalid required inputs"
+    success_msg: "Basic input validation passed"
+
+- name: Store execution timestamp
+  ansible.builtin.set_fact:
+    execution_timestamp: "{{ lookup('ansible.builtin.pipe', 'date +%Y%m%d_%H%M%S') }}"
+
+- name: Display pre-check summary
+  ansible.builtin.debug:
+    msg:
+      - "Pre-check completed successfully"
+      - "Target: {{ target_system | upper }}"
+      - "Host: {{ ansible_host }}"
+      - "Device: {{ device_name | default('N/A') }}"
+      - "Timestamp: {{ execution_timestamp }}"

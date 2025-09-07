@@ -1,0 +1,16 @@
+---
+- name: Clean up failed captures
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ item.device_id }}/operational/packetcaptures/{{ item.capture_id }}"
+    method: DELETE
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: false
+    status_code: [200, 204, 404]
+  loop: "{{ capture_results | default([]) }}"
+  when: capture_results is defined
+  failed_when: false
+
+- name: Rollback notification
+  ansible.builtin.debug:
+    msg: "⚠️ Capture sessions cleaned up after failure"

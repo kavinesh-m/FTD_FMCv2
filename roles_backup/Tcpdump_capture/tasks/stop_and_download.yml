@@ -1,0 +1,34 @@
+---
+- name: Stop capture on {{ capture.device_name }}
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ capture.device_id }}/operational/packetcaptures/{{ capture.capture_id }}"
+    method: PUT
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    body_format: json
+    body:
+      type: "PacketCapture"
+      id: "{{ capture.capture_id }}"
+      action: "STOP"
+    validate_certs: false
+    status_code: [200, 202]
+  register: stop_response
+
+- name: Wait for capture to stop
+  ansible.builtin.pause:
+    seconds: 5
+
+- name: Download PCAP file
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ capture.device_id }}/operational/packetcaptures/{{ capture.capture_id }}/pcapfile"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: false
+    dest: "/tmp/capture_{{ execution_id }}_{{ capture.device_name }}.pcap"
+  delegate_to: localhost
+  register: download_result
+
+- name: Record downloaded file
+  ansible.builtin.set_fact:
+    pcap_files: "{{ pcap_files + ['/tmp/capture_' + execution_id + '_' + capture.device_name + '.pcap'] }}"

@@ -1,0 +1,21 @@
+---
+# roles/Connection_status/tasks/pre-check.yml
+- name: Validate run flag and set timestamp
+  delegate_to: localhost
+  block:
+    - ansible.builtin.assert:
+        that:
+          - (limit | default(100)) | int > 0
+        success_msg: "Inputs OK"
+    
+    - ansible.builtin.set_fact:
+        uat_started_at: "{{ lookup('ansible.builtin.pipe','date +%Y-%m-%d_%H-%M-%S') }}"
+
+- name: Report delivery targets
+  delegate_to: localhost
+  ansible.builtin.debug:
+    msg:
+      - "CSV export: {{ export_csv }}"
+      - "Email to: {{ email_to | default('') | ternary(email_to,'(none)') }}"
+      - "Push to repo: {{ store_to_repo }}"
+      - "Repo path: https://github.com/{{ github_repo_owner }}/{{ github_repo_name }} -> {{ github_repo_path }}"

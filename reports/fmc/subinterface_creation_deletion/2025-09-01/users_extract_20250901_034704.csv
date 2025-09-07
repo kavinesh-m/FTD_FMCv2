@@ -1,0 +1,3 @@
+UserType,Username,RealName,Email,Role/Privilege,AuthMethod,AccessType,Source
+FMC,admin,admin,N/A,"Administrator",Internal,Web UI,FMC API
+FMC,ansible,ansible,N/A,"Administrator",Internal,Web UI,FMC API

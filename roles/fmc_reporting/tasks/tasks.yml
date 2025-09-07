@@ -1,0 +1,10 @@
+---
+- name: Extract ACE Counts
+  when: use_case == 'report_ace_counts'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Ace_counts_extraction/tasks/main.yml'
+
+- name: Extract Disabled/Time-Based Rules
+  when: use_case == 'report_disabled_rules'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Extraction_of_all_disabled_and_time-based_rules/tasks/main.yml'
+
+# Add other reporting tasks here...

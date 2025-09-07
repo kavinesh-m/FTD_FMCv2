@@ -1,0 +1,197 @@
+---
+# 1) Auth
+- name: Get FMC auth token
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  register: auth_response
+
+- name: Extract auth token + timestamp
+  ansible.builtin.set_fact:
+    auth_token: "{{ auth_response.x_auth_access_token }}"
+    domain_uuid: "{{ auth_response.domain_uuid | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+    extract_dt: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+# 2) Fetch ONLY the requested object families (skip metadata-heavy/unused)
+- name: Get network objects
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/networks?expanded=true&limit=1000"
+    method: GET
+    headers: { X-auth-access-token: "{{ auth_token }}" }
+    validate_certs: no
+    status_code: [200, 404]
+  register: network_objects
+  ignore_errors: yes
+
+- name: Get network groups
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/networkgroups?expanded=true&limit=1000"
+    method: GET
+    headers: { X-auth-access-token: "{{ auth_token }}" }
+    validate_certs: no
+    status_code: [200, 404]
+  register: network_groups
+  ignore_errors: yes
+
+- name: Get service/port objects
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/protocolportobjects?expanded=true&limit=1000"
+    method: GET
+    headers: { X-auth-access-token: "{{ auth_token }}" }
+    validate_certs: no
+    status_code: [200, 404]
+  register: port_objects
+  ignore_errors: yes
+
+- name: Get service/port groups
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/portobjectgroups?expanded=true&limit=1000"
+    method: GET
+    headers: { X-auth-access-token: "{{ auth_token }}" }
+    validate_certs: no
+    status_code: [200, 404]
+  register: port_groups
+  ignore_errors: yes
+
+- name: Get URL objects
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/urls?expanded=true&limit=1000"
+    method: GET
+    headers: { X-auth-access-token: "{{ auth_token }}" }
+    validate_certs: no
+    status_code: [200, 404]
+  register: url_objects
+  ignore_errors: yes
+
+- name: Get URL groups
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/urlgroups?expanded=true&limit=1000"
+    method: GET
+    headers: { X-auth-access-token: "{{ auth_token }}" }
+    validate_certs: no
+    status_code: [200, 404]
+  register: url_groups
+  ignore_errors: yes
+
+- name: Get Geolocation objects
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/geolocations?expanded=true&limit=1000"
+    method: GET
+    headers: { X-auth-access-token: "{{ auth_token }}" }
+    validate_certs: no
+    status_code: [200, 404]
+  register: geo_objects
+  ignore_errors: yes
+
+# 3) Build the unified list
+- name: Initialize all_objects list
+  ansible.builtin.set_fact:
+    all_objects: []
+
+# Networks (objects)
+- name: Add Network Objects
+  ansible.builtin.set_fact:
+    all_objects: "{{ all_objects + [ item | combine({'object_type':'Network Object', 'kind':'Object'}) ] }}"
+  loop: "{{ network_objects.json.get('items', []) | default([]) }}"
+  when: network_objects.json is defined
+
+# Network Groups
+- name: Add Network Groups
+  ansible.builtin.set_fact:
+    all_objects: "{{ all_objects + [ item | combine({'object_type':'Network Group', 'kind':'Group'}) ] }}"
+  loop: "{{ network_groups.json.get('items', []) | default([]) }}"
+  when: network_groups.json is defined
+
+# Port Objects
+- name: Add Port Objects
+  ansible.builtin.set_fact:
+    all_objects: "{{ all_objects + [ item | combine({'object_type':'Port Object', 'kind':'Object'}) ] }}"
+  loop: "{{ port_objects.json.get('items', []) | default([]) }}"
+  when: port_objects.json is defined
+
+# Port Groups
+- name: Add Port Groups
+  ansible.builtin.set_fact:
+    all_objects: "{{ all_objects + [ item | combine({'object_type':'Port Group', 'kind':'Group'}) ] }}"
+  loop: "{{ port_groups.json.get('items', []) | default([]) }}"
+  when: port_groups.json is defined
+
+# URL Objects
+- name: Add URL Objects
+  ansible.builtin.set_fact:
+    all_objects: "{{ all_objects + [ item | combine({'object_type':'URL Object', 'kind':'Object'}) ] }}"
+  loop: "{{ url_objects.json.get('items', []) | default([]) }}"
+  when: url_objects.json is defined
+
+# URL Groups
+- name: Add URL Groups
+  ansible.builtin.set_fact:
+    all_objects: "{{ all_objects + [ item | combine({'object_type':'URL Group', 'kind':'Group'}) ] }}"
+  loop: "{{ url_groups.json.get('items', []) | default([]) }}"
+  when: url_groups.json is defined
+
+# Geolocations (treat like object)
+- name: Add Geolocation Objects
+  ansible.builtin.set_fact:
+    all_objects: "{{ all_objects + [ item | combine({'object_type':'Geolocation', 'kind':'Object'}) ] }}"
+  loop: "{{ geo_objects.json.get('items', []) | default([]) }}"
+  when: geo_objects.json is defined
+
+# 4) Outputs (JSON + CSV)
+- name: Save all objects to JSON file
+  ansible.builtin.copy:
+    content: "{{ all_objects | to_nice_json }}"
+    dest: "/tmp/objects_{{ execution_id }}.json"
+  delegate_to: localhost
+
+# CSV â€” minimal, exactly the fields requested
+- name: Generate CSV file
+  ansible.builtin.copy:
+    content: |
+      Name,Type,ObjectType,Members,Value,Description,UUID,DateTime
+      {% for obj in all_objects %}
+      {# Members for groups: names of referenced objects + literal values #}
+      {% set member_objs = (obj.objects | default([]) | map(attribute='name') | list) %}
+      {% set literal_vals = [] %}
+      {% for lit in obj.literals | default([]) %}
+      {%   set _ = literal_vals.append(lit.value | default(lit.port | default(lit.url | default(lit | to_json)))) %}
+      {% endfor %}
+      {% set members = (member_objs + literal_vals) | join('; ') %}
+      {# Value for objects: prefer value->port->url->name #}
+      {% set val = obj.value | default(obj.port | default(obj.url | default(obj.name | default('')))) %}
+      "{{ obj.name | default('') }}","{{ obj.kind | default('') }}","{{ obj.object_type | default('') }}","{{ members }}","{{ val }}","{{ obj.description | default('') | replace('\n',' ') }}","{{ obj.id | default('') }}","{{ extract_dt }}"
+      {% endfor %}
+    dest: "/tmp/objects_{{ execution_id }}.csv"
+  delegate_to: localhost
+
+# 5) Counts for your summaries (keep unused ones as 0 so other tasks donâ€™t break)
+- name: Calculate object counts
+  ansible.builtin.set_fact:
+    total_objects:        "{{ all_objects | length }}"
+    network_objects_count: "{{ all_objects | selectattr('object_type','equalto','Network Object') | list | length }}"
+    network_groups_count:  "{{ all_objects | selectattr('object_type','equalto','Network Group')  | list | length }}"
+    port_objects_count:    "{{ all_objects | selectattr('object_type','equalto','Port Object')    | list | length }}"
+    port_groups_count:     "{{ all_objects | selectattr('object_type','equalto','Port Group')     | list | length }}"
+    url_objects_count:     "{{ all_objects | selectattr('object_type','equalto','URL Object')     | list | length }}"
+    url_groups_count:      "{{ all_objects | selectattr('object_type','equalto','URL Group')      | list | length }}"
+    geolocation_count:     "{{ all_objects | selectattr('object_type','equalto','Geolocation')    | list | length }}"
+    # keep these so orchestrator/post-check don't error if still referenced:
+    host_objects_count:  0
+    range_objects_count: 0
+    fqdn_objects_count:  0
+    extraction_results: "{{ all_objects }}"
+
+- name: Display extraction summary
+  ansible.builtin.debug:
+    msg:
+      - "Extraction completed"
+      - "Total objects: {{ total_objects }}"
+      - "Networks: {{ network_objects_count }} | NetGroups: {{ network_groups_count }}"
+      - "Ports: {{ port_objects_count }} | PortGroups: {{ port_groups_count }}"
+      - "URLs: {{ url_objects_count }} | URLGroups: {{ url_groups_count }}"
+      - "Geolocations: {{ geolocation_count }}"

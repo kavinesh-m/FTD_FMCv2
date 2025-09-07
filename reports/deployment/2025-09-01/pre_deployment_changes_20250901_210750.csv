@@ -1,0 +1,4 @@
+PRE-DEPLOYMENT PENDING CHANGES
+Device Name,Policy Name,Policy Type,Status,Modified By,Modified Time
+"ciscoftd01","Basic policy","PG.FIREWALL.NGFWAccessControlPolicy","Pending","admin","1756719375078"
+"ciscoftd01","Test policy","PG.PLATFORM.NgfwPFSettings","Pending","admin","1756708699995"

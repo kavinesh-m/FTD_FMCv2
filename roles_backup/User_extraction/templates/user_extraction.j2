@@ -1,0 +1,131 @@
+=========================================
+FMC/FTD USER & ROLE EXTRACTION REPORT
+=========================================
+Report ID: {{ report_vars.execution_id }}
+Generated: {{ report_vars.report_date }} at {{ report_vars.report_time }}
+Host: {{ report_vars.inventory_hostname }} ({{ report_vars.ansible_host }})
+Target System: {{ report_vars.target_system | upper }}
+{% if report_vars.device_name is defined and report_vars.device_name %}
+Device: {{ report_vars.device_name }}
+{% endif %}
+=========================================
+
+EXECUTIVE SUMMARY
+-----------------
+Total Users Identified: {{ report_vars.total_users }}
+- FMC Management Users: {{ report_vars.fmc_users_count }}
+- FTD Local Users (SSH/Console): {{ report_vars.ftd_users_count }}
+
+=========================================
+
+1. FMC MANAGEMENT USERS
+-----------------------
+{% if report_vars.fmc_users and report_vars.fmc_users | length > 0 %}
+Total Users: {{ report_vars.fmc_users | length }}
+
+{% for user in report_vars.fmc_users %}
+User #{{ loop.index }}: {{ user.username }}
+  - Real Name: {{ user.realName | default('N/A') }}
+  - Email: {{ user.email | default('N/A') }}
+  - Role(s): {{ user.roles | default('No roles assigned') }}
+  - Auth Method: {{ user.authMethod | default('Internal') }}
+  - Password Lifetime: {{ user.passwordLifetime | default('N/A') }}
+  - Status: {{ 'Enabled' if user.isEnabled else 'Disabled' }}
+
+{% endfor %}
+{% else %}
+No FMC management users found.
+{% endif %}
+
+2. FTD LOCAL USERS (SSH/Console)
+---------------------------------
+{% if report_vars.ftd_local_users and report_vars.ftd_local_users | length > 0 %}
+{% if report_vars.ftd_local_users[0] is mapping %}
+Total FTD Local Users: {{ report_vars.ftd_local_users | length }}
+
+{% for user in report_vars.ftd_local_users %}
+Local User #{{ loop.index }}: {{ user.username }}
+  - Privilege Level: {{ user.privilege }}
+  - Access Type: {{ user.accessType | default('SSH/Console') }}
+  - Password Type: {{ user.passwordType | default('encrypted') }}
+  - Source: {{ user.source | default('Unknown') }}
+
+{% endfor %}
+{% elif report_vars.ftd_local_users[0] is iterable %}
+Total FTD Local Users: {{ report_vars.ftd_local_users[0] | length }}
+
+{% for user in report_vars.ftd_local_users[0] %}
+Local User #{{ loop.index }}: {{ user.username }}
+  - Privilege Level: {{ user.privilege }}
+  - Access Type: {{ user.accessType | default('SSH/Console') }}
+  - Password Type: {{ user.passwordType | default('encrypted') }}
+  - Source: {{ user.source | default('Unknown') }}
+
+{% endfor %}
+{% endif %}
+{% else %}
+No FTD local users found or SSH access not configured.
+Note: FTD local user extraction requires either:
+  - SSH access to FTD device with proper credentials
+  - FMC API access to device local users endpoint
+  - Device platform settings access via FMC
+{% endif %}
+
+3. AVAILABLE ROLES IN SYSTEM
+-----------------------------
+{% if report_vars.available_roles and report_vars.available_roles | length > 0 %}
+Total Available Roles: {{ report_vars.available_roles | length }}
+{% for role in report_vars.available_roles %}
+- {{ role.name }}{% if role is mapping and 'description' in role %}: {{ role.description | truncate(50) }}{% endif %}
+{% endfor %}
+{% else %}
+No roles data available.
+{% endif %}
+
+4. AUTHENTICATION REALMS
+------------------------
+{% if report_vars.auth_realms and report_vars.auth_realms | length > 0 %}
+Total Realms: {{ report_vars.auth_realms | length }}
+{% for realm in report_vars.auth_realms %}
+- {{ realm.name }} ({{ realm.type | default('Unknown') }})
+{% endfor %}
+{% else %}
+No authentication realms configured.
+{% endif %}
+
+{% if report_vars.device_info %}
+5. DEVICE INFORMATION
+---------------------
+Device Name: {{ report_vars.device_info.name | default('N/A') }}
+Model: {{ report_vars.device_info.model | default('N/A') }}
+Version: {{ report_vars.device_info.sw_version | default('N/A') }}
+Serial Number: {{ report_vars.device_info.metadata.deviceSerialNumber | default('N/A') if report_vars.device_info.metadata is defined else 'N/A' }}
+Management State: {{ report_vars.device_info.managementState | default('N/A') }}
+{% endif %}
+
+EXTRACTION SUMMARY
+------------------
+- Execution Status: {{ report_vars.execution_status | upper }}
+- FMC Users Found: {{ report_vars.fmc_users_count }}
+- FTD Local Users Found: {{ report_vars.ftd_users_count }}
+- Roles Available: {{ report_vars.available_roles | length if report_vars.available_roles else 0 }}
+- Realms Found: {{ report_vars.auth_realms | length if report_vars.auth_realms else 0 }}
+
+NOTES
+-----
+{% if report_vars.ftd_users_count == 0 and report_vars.target_system in ['ftd', 'both'] %}
+* No FTD local users were extracted. This could be due to:
+  - SSH access not configured or credentials not provided
+  - FMC API endpoint for local users not available
+  - Device not supporting local user extraction via API
+  - Insufficient privileges to access user information
+
+To enable FTD local user extraction, ensure:
+1. SSH access is enabled on FTD device
+2. Correct SSH credentials are provided in playbook variables
+3. FMC has proper access to device configuration
+{% endif %}
+
+=========================================
+End of Report - Generated by AAP
+=========================================

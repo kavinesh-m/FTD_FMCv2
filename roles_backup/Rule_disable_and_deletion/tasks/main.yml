@@ -1,0 +1,84 @@
+---
+# Extract all disabled/expired rules
+- name: Get all rules from policy
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules?expanded=true&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: all_rules
+
+# Extract the rules list first to avoid template issues
+- name: Extract rules list
+  ansible.builtin.set_fact:
+    rules_list: "{{ all_rules.json['items'] | default([]) }}"
+
+- name: Extract disabled rules
+  ansible.builtin.set_fact:
+    disabled_rules_list: "{{ rules_list | selectattr('enabled', 'equalto', false) | list }}"
+  when: action_type == 'extract_disabled'
+
+- name: Display disabled rules count
+  ansible.builtin.debug:
+    msg: "Found {{ disabled_rules_list | length }} disabled rules"
+  when: 
+    - action_type == 'extract_disabled'
+    - disabled_rules_list is defined
+
+- name: Process specific rules for disable/delete
+  when: action_type in ['disable', 'delete'] and target_rules is defined
+  block:
+    - name: Find target rules
+      ansible.builtin.set_fact:
+        rules_to_process: "{{ rules_list | selectattr('name', 'in', target_rules) | list }}"
+
+    - name: Process each rule
+      include_tasks: process_rule.yml
+      loop: "{{ rules_to_process }}"
+      loop_control:
+        loop_var: rule_item
+
+# Process all disabled rules for deletion - FIX: Check for "yes" string
+- name: Delete all disabled rules
+  when: 
+    - action_type == 'extract_disabled' 
+    - delete_disabled | default('no') | lower == 'yes'
+  block:
+    - name: Delete each disabled rule
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules/{{ item.id }}"
+        method: DELETE
+        headers:
+          X-auth-access-token: "{{ fmc_access_token }}"
+        validate_certs: no
+        status_code: [200, 204]
+      loop: "{{ disabled_rules_list }}"
+      register: delete_results
+
+    - name: Track deleted rules
+      ansible.builtin.set_fact:
+        deleted_rules: "{{ deleted_rules + [item] }}"
+      loop: "{{ disabled_rules_list }}"
+
+# Deploy configuration - FIX: Check for "yes" string
+- name: Deploy configuration
+  when: 
+    - deploy_now | default('no') | lower == 'yes'
+    - device_list is defined
+    - device_list | length > 0
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/deploymentrequests"
+    method: POST
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    body_format: json
+    body:
+      type: "DeploymentRequest"
+      version: "{{ ansible_date_time.epoch }}"
+      forceDeploy: true
+      ignoreWarning: true
+      deviceList: "{{ device_list }}"
+    validate_certs: false
+    status_code: [202]
+  register: deploy_result

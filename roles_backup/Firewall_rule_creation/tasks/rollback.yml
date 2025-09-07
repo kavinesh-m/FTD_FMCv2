@@ -1,0 +1,54 @@
+---
+# Delete rule if we created it new
+- name: Delete new rule on failure
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules/{{ final_rule_id }}"
+    method: DELETE
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: false
+    status_code: [200, 204]
+  when: final_rule_id | default('') | length > 0
+
+# Restore original rule if we updated it
+- name: Restore original rule (PUT snapshot)
+  when:
+    - existing_rule_id | default('') | length > 0
+    - existing_rule | length > 0
+  cisco.fmcansible.fmc_configuration:
+    method: PUT
+    path: "/policy/accesspolicies/{{ policy_id }}/accessrules/{{ existing_rule_id }}"
+    data: "{{ existing_rule }}"
+
+# Delete the single created object (if any)
+- name: Delete newly created object
+  when:
+    - created_object is defined
+    - created_object.id is defined
+    - created_object_endpoint is defined
+  cisco.fmcansible.fmc_configuration:
+    method: DELETE
+    path: "{{ created_object_endpoint }}/{{ created_object.id }}"
+
+# Optional redeploy to revert device config (only if user asked deploy)
+- name: Re-deploy to remove changes
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/deploymentrequests"
+    method: POST
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    body_format: json
+    body:
+      type: "DeploymentRequest"
+      version: "{{ ansible_date_time.epoch }}"
+      forceDeploy: false
+      ignoreWarning: true
+      deviceList:
+        - "{{ device_uuid }}"
+    validate_certs: false
+    status_code: 202
+  when: deploy | default(false)
+
+- name: Rollback note
+  ansible.builtin.debug:
+    msg: "Rollback completed (rule/object reverted where applicable)."

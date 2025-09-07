@@ -1,0 +1,15 @@
+---
+- name: Get ACE hit counts
+  cisco.fmc.fmc_configuration:
+    operation: get
+    path: "/policy/accesspolicies/{{ policy_name }}/operations/hitcounts"
+  register: hits
+
+- name: Save counts CSV
+  ansible.builtin.copy:
+    dest: "ace_counts_{{ policy_name }}_{{ uat_started_at }}.csv"
+    content: |
+      rule,hitCount
+      {% for h in (hits.json | default([])) %}
+      {{ h.ruleName }},{{ h.hitCount }}
+      {% endfor %}

@@ -1,0 +1,168 @@
+# ---
+# - name: Set failure status
+#   ansible.builtin.set_fact:
+#     execution_status: "failed"
+#     rollback_initiated: true
+
+# - name: Capture failure details
+#   ansible.builtin.set_fact:
+#     failure_details:
+#       task_name: "{{ ansible_failed_task.name | default('Unknown') }}"
+#       error_message: "{{ ansible_failed_result.msg | default('Unknown error') }}"
+#       timestamp: "{{ lookup('ansible.builtin.pipe', 'date +\"%Y-%m-%d %H:%M:%S\"') }}"
+
+# - name: Display rollback information
+#   ansible.builtin.debug:
+#     msg:
+#       - "========================================="
+#       - "ROLLBACK INITIATED"
+#       - "========================================="
+#       - "Failed Task: {{ failure_details.task_name }}"
+#       - "Error: {{ failure_details.error_message }}"
+#       - "Time: {{ failure_details.timestamp }}"
+#       - "========================================="
+
+# # Rollback deployment if it was initiated
+# - name: Check if deployment was initiated
+#   ansible.builtin.set_fact:
+#     deployment_initiated: "{{ deployment_requests is defined and deployment_requests.results | length > 0 }}"
+
+# - name: Rollback deployment if needed
+#   when:
+#     - deployment_initiated | bool
+#     - deployment_type != 'REPORT_ONLY'
+#   block:
+#     - name: Display rollback options
+#       ansible.builtin.debug:
+#         msg:
+#           - "DEPLOYMENT ROLLBACK OPTIONS:"
+#           - "1. Use FMC UI to manually revert changes"
+#           - "2. Use deployment history to restore previous configuration"
+#           - "3. Review deployment job status in FMC Task Manager"
+#           - ""
+#           - "Affected Devices:"
+#           {% for request in deployment_requests.results | default([]) %}
+#           {% if request.json is defined %}
+#           - "  - Device: {{ request.item.device.name }}"
+#           - "    Task ID: {{ request.json.metadata.task.id | default('N/A') }}"
+#           {% endif %}
+#           {% endfor %}
+
+#     - name: Get deployment history for rollback reference
+#       uri:
+#         url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/deployment/deploymenthistory"
+#         method: GET
+#         headers:
+#           X-auth-access-token: "{{ auth_token }}"
+#         validate_certs: no
+#         status_code: [200, 404]
+#       register: deployment_history
+#       failed_when: false
+
+#     - name: Save deployment history for reference
+#       ansible.builtin.copy:
+#         content: "{{ deployment_history.json | to_nice_json }}"
+#         dest: "/tmp/deployment_history_{{ execution_id }}.json"
+#       delegate_to: localhost
+#       when: deployment_history.status == 200
+
+# # Generate failure report
+# - name: Generate failure report
+#   ansible.builtin.copy:
+#     content: |
+#       FMC DEPLOYMENT FAILURE REPORT
+#       ========================================
+#       Report ID: {{ execution_id }}
+#       Generated: {{ failure_details.timestamp }}
+      
+#       FAILURE DETAILS
+#       ---------------
+#       Failed Task: {{ failure_details.task_name }}
+#       Error Message: {{ failure_details.error_message }}
+#       Deployment Type: {{ deployment_type }}
+      
+#       PRE-FAILURE STATUS
+#       ------------------
+#       Total Devices: {{ deployment_analysis.total_devices | default('N/A') }}
+#       Devices with Changes: {{ deployment_analysis.devices_with_changes | length | default('N/A') }}
+#       Total Pending Changes: {{ deployment_analysis.total_pending_changes | default('N/A') }}
+      
+#       ROLLBACK RECOMMENDATIONS
+#       ------------------------
+#       {% if deployment_initiated %}
+#       Deployment was initiated. Please:
+#       1. Check FMC Task Manager for deployment status
+#       2. Review deployment history in FMC UI
+#       3. Use deployment history file: /tmp/deployment_history_{{ execution_id }}.json
+#       4. Consider manual rollback if deployment partially completed
+#       {% else %}
+#       No deployment was initiated. No rollback required.
+#       Review the error and retry the operation.
+#       {% endif %}
+      
+#       RECOVERY STEPS
+#       --------------
+#       1. Review the error message above
+#       2. Check FMC connectivity and credentials
+#       3. Verify device accessibility
+#       4. Ensure sufficient privileges for deployment operations
+#       5. Retry operation after resolving the issue
+      
+#       ========================================
+#       End of Failure Report
+#     dest: "/tmp/deployment_failure_{{ execution_id }}.txt"
+#   delegate_to: localhost
+
+# - name: Send failure notification if email configured
+#   when:
+#     - send_to_email | default('no') | lower == 'yes'
+#     - email_address | length > 0
+#     - smtp_username is defined
+#     - smtp_password is defined
+#   ansible.builtin.mail:
+#     host: "smtp.gmail.com"
+#     port: 587
+#     username: "{{ smtp_username }}"
+#     password: "{{ smtp_password }}"
+#     from: "{{ smtp_username }}"
+#     to: "{{ email_address }}"
+#     subject: "FAILED: {{ email_subject }} - {{ execution_id }}"
+#     body: |
+#       FMC Deployment Report - FAILURE NOTIFICATION
+#       ============================================
+      
+#       The deployment report generation has failed.
+      
+#       FAILURE DETAILS
+#       ---------------
+#       Report ID: {{ execution_id }}
+#       Failed at: {{ failure_details.timestamp }}
+#       Failed Task: {{ failure_details.task_name }}
+#       Error: {{ failure_details.error_message }}
+      
+#       Please check the Ansible Automation Platform for more details.
+      
+#       {% if deployment_initiated %}
+#       WARNING: Deployment may have been partially executed.
+#       Please check FMC for deployment status.
+#       {% endif %}
+      
+#       ---
+#       This is an automated notification from Ansible Automation Platform
+#     attach:
+#       - "/tmp/deployment_failure_{{ execution_id }}.txt"
+#     secure: "starttls"
+#     charset: "utf-8"
+#   delegate_to: localhost
+#   failed_when: false
+
+# - name: Display rollback completion
+#   ansible.builtin.debug:
+#     msg:
+#       - "========================================="
+#       - "ROLLBACK COMPLETED"
+#       - "========================================="
+#       - "Failure report saved: /tmp/deployment_failure_{{ execution_id }}.txt"
+#       - "{% if deployment_initiated %}Deployment history saved: /tmp/deployment_history_{{ execution_id }}.json{% endif %}"
+#       - "Please review FMC for current state"
+#       - "========================================="

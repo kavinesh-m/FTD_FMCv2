@@ -1,0 +1,76 @@
+---
+# Hostname Configuration Validation and Setup
+# 3.1.1 Hostname Configuration per H-Cloud Naming Convention
+
+- name: Get Current System Information for Hostname Validation
+  cisco.fmcansible.fmc_configuration:
+    operation: getAllServerVersion
+  register: current_system_info
+  when: hostname_format_validation | bool
+
+- name: Debug Current System Information
+  debug:
+    var: current_system_info
+  when: 
+    - hostname_format_validation | bool
+
+- name: Extract Current Hostname
+  set_fact:
+    current_hostname: "{{ current_system_info.response['items'][0].hostname | default('Unknown') }}"
+  when: 
+    - hostname_format_validation | bool
+    - current_system_info.response is defined
+    - current_system_info.response['items'] is defined
+    - current_system_info.response['items'] | length > 0
+
+- name: Debug Current Hostname
+  debug:
+    msg: "Current Hostname: {{ current_hostname }}"
+  when: hostname_format_validation | bool
+
+- name: Validate Hostname Format Against H-Cloud Convention
+  set_fact:
+    hostname_compliant: "{{ current_hostname | regex_search(expected_hostname_pattern) is not none }}"
+  when: 
+    - hostname_format_validation | bool
+    - current_hostname is defined
+
+- name: Record Hostname Compliance Status
+  set_fact:
+    compliance_results: "{{ compliance_results | default({}) | combine({
+      'hostname_compliance': {
+        'status': hostname_compliant | default(false),
+        'current_hostname': current_hostname | default('UNKNOWN'),
+        'expected_pattern': expected_hostname_pattern,
+        'compliant': hostname_compliant | default(false),
+        'recommendation': 'Hostname must follow H-Cloud naming convention: <DataCenterLocation>-<NetworkZone>-<Institution/cluster>-<DevicePurpose><Running Numbers>'
+      } }) }}"
+  when: hostname_format_validation | bool
+
+- name: Display Hostname Compliance Status
+  debug:
+    msg:
+      - "Hostname Compliance Check:"
+      - "Current Hostname: {{ current_hostname | default('UNKNOWN') }}"
+      - "Expected Pattern: {{ expected_hostname_pattern }}"
+      - "Compliant: {{ hostname_compliant | default(false) }}"
+      - "{% if not (hostname_compliant | default(false)) %}RECOMMENDATION: Update hostname to follow H-Cloud naming convention{% endif %}"
+  when: hostname_format_validation | bool
+
+- name: Warn if Hostname is Non-Compliant
+  fail:
+    msg: |
+      HOSTNAME COMPLIANCE FAILURE:
+      Current hostname '{{ current_hostname | default('UNKNOWN') }}' does not comply with H-Cloud naming convention.
+      Expected format: <DataCenterLocation>-<NetworkZone>-<Institution/cluster>-<DevicePurpose><Running Numbers>
+      Example: DC01-DMZ-CORP-FMC001
+      
+      Manual Action Required:
+      1. Navigate to System > Management Interfaces > Shared Settings
+      2. Update Hostname field with compliant name
+      3. Click Save to apply changes
+  when: 
+    - hostname_format_validation | bool
+    - not (hostname_compliant | default(false))
+    - validate_compliance | bool
+  ignore_errors: "{{ not validate_compliance }}"

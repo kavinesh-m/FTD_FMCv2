@@ -1,0 +1,140 @@
+---
+# Generate Compliance Report
+# Compile and generate comprehensive compliance report
+
+- name: Initialize Compliance Summary
+  set_fact:
+    compliance_summary:
+      overall_status: "UNKNOWN"
+      total_checks: 0
+      passed_checks: 0
+      failed_checks: 0
+      compliance_percentage: 0
+      critical_failures: []
+      recommendations: []
+
+- name: Calculate Compliance Statistics
+  set_fact:
+    compliance_checks: "{{ compliance_results | dict2items }}"
+    total_checks: "{{ compliance_results | length }}"
+  when: compliance_results is defined
+
+- name: Count Passed and Failed Checks
+  set_fact:
+    passed_checks: "{{ compliance_checks | selectattr('value.compliant', 'equalto', true) | list | length }}"
+    failed_checks: "{{ compliance_checks | selectattr('value.compliant', 'equalto', false) | list | length }}"
+  when: compliance_checks is defined
+
+- name: Calculate Compliance Percentage
+  set_fact:
+    compliance_percentage: "{{ ((passed_checks | int) * 100 / (total_checks | int)) | round(1) if (total_checks | int) > 0 else 0 }}"
+
+- name: Determine Overall Compliance Status
+  set_fact:
+    overall_status: "{{ 'COMPLIANT' if compliance_percentage | float == 100.0 else ('PARTIALLY_COMPLIANT' if compliance_percentage | float >= 70.0 else 'NON_COMPLIANT') }}"
+
+- name: Identify Critical Failures
+  set_fact:
+    critical_failures: "{{ critical_failures | default([]) + [item.key] }}"
+  loop: "{{ compliance_checks | default([]) }}"
+  when: 
+    - item.value.compliant == false
+    - item.key in ['access_control_compliance', 'password_policy_compliance']
+
+- name: Collect Recommendations
+  set_fact:
+    recommendations: "{{ recommendations | default([]) + [item.value.recommendation] }}"
+  loop: "{{ compliance_checks | default([]) }}"
+  when: 
+    - item.value.compliant == false
+    - item.value.recommendation is defined
+
+- name: Update Compliance Summary
+  set_fact:
+    compliance_summary:
+      overall_status: "{{ overall_status }}"
+      total_checks: "{{ total_checks | int }}"
+      passed_checks: "{{ passed_checks | int }}"
+      failed_checks: "{{ failed_checks | int }}"
+      compliance_percentage: "{{ compliance_percentage | float }}"
+      critical_failures: "{{ critical_failures | default([]) }}"
+      recommendations: "{{ recommendations | default([]) }}"
+      timestamp: "{{ timestamp }}"
+      fmc_host: "{{ fmc_host }}"
+
+- name: Compile Full Compliance Report
+  set_fact:
+    full_compliance_report:
+      report_info:
+        title: "FMC Security Hardening Compliance Report"
+        timestamp: "{{ timestamp }}"
+        fmc_host: "{{ fmc_host }}"
+        generated_by: "{{ ansible_user | default('ansible') }}"
+        report_version: "1.0"
+      summary: "{{ compliance_summary }}"
+      detailed_results: "{{ compliance_results | default({}) }}"
+      hardening_configuration: "{{ hardening_config | default({}) }}"
+
+- name: Save Compliance Report to JSON
+  copy:
+    content: "{{ full_compliance_report | to_nice_json }}"
+    dest: "{{ config_output_dir }}/fmc_compliance_report_{{ timestamp }}.json"
+    mode: '0644'
+  delegate_to: localhost
+  when: compliance_report_enabled | bool
+
+- name: Log Compliance Summary
+  lineinfile:
+    path: "{{ log_output_dir }}/compliance_audit.log"
+    line: "{{ timestamp }} - FMC {{ fmc_host }} - Compliance: {{ compliance_percentage }}% ({{ passed_checks }}/{{ total_checks }}) - Status: {{ overall_status }} - Critical Failures: {{ (critical_failures | default([])) | length }}"
+    create: yes
+    mode: '0644'
+  delegate_to: localhost
+
+- name: Display Compliance Report Summary
+  debug:
+    msg:
+      - "=== FMC SECURITY HARDENING COMPLIANCE REPORT ==="
+      - "FMC Host: {{ fmc_host }}"
+      - "Report Generated: {{ timestamp }}"
+      - ""
+      - "OVERALL COMPLIANCE STATUS: {{ overall_status }}"
+      - "Compliance Percentage: {{ compliance_percentage }}%"
+      - "Total Checks: {{ total_checks }}"
+      - "Passed Checks: {{ passed_checks }}"
+      - "Failed Checks: {{ failed_checks }}"
+      - ""
+      - "{% if (critical_failures | default([])) | length > 0 %}CRITICAL FAILURES: {{ (critical_failures | default([])) | join(', ') }}{% endif %}"
+      - ""
+      - "DETAILED RESULTS:"
+      - "{% for check in compliance_checks | default([]) %}{{ check.key }}: {{ 'PASS' if check.value.compliant else 'FAIL' }}{% endfor %}"
+      - ""
+      - "Report Files:"
+      - "- JSON: {{ config_output_dir }}/fmc_compliance_report_{{ timestamp }}.json"
+
+- name: Display Recommendations
+  debug:
+    msg:
+      - "=== HARDENING RECOMMENDATIONS ==="
+      - "{% for recommendation in recommendations | default([]) %}{{ loop.index }}. {{ recommendation }}{% endfor %}"
+  when: recommendations | default([]) | length > 0
+
+- name: Fail on Critical Compliance Issues
+  fail:
+    msg: |
+      CRITICAL COMPLIANCE FAILURE:
+      FMC {{ fmc_host }} has {{ critical_failures | length }} critical security compliance failures.
+      
+      Critical Issues:
+      {% for failure in critical_failures %}
+      - {{ failure }}
+      {% endfor %}
+      
+      Overall Compliance: {{ compliance_percentage }}%
+      
+      These issues must be resolved before production deployment.
+      Review the detailed compliance report for remediation steps.
+  when: 
+    - critical_failures | default([]) | length > 0
+    - validate_compliance | bool
+  ignore_errors: "{{ not validate_compliance }}"

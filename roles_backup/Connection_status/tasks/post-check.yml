@@ -1,0 +1,176 @@
+---
+# post-check.yml - Updated with Gmail SMTP configuration
+
+# Create CSV with connection reference header
+- name: Create CSV file with reference header
+  when: export_csv | lower == 'yes'
+  delegate_to: localhost
+  ansible.builtin.copy:
+    dest: "connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv"
+    content: |
+      FMC Connection Status Report
+      Generated: {{ uat_started_at }}
+      Host: {{ inventory_hostname }} ({{ ansible_host }})
+      Total Connections: {{ conn_rows | length }}
+      
+      === CONNECTION FLAGS REFERENCE ===
+      {{ conn_header | default('') }}
+      
+      === CONNECTION DATA ===
+      Protocol,SRC-INT,SRC_IP,SRC-PORT,DST-INT,DST_IP,DST-PORT,FLAGS
+      {% for r in conn_rows | default([]) -%}
+      {{ r['Protocol'] }},{{ r['SRC-INT'] }},{{ r['SRC_IP'] }},{{ r['SRC-PORT'] }},{{ r['DST-INT'] }},{{ r['DST_IP'] }},{{ r['DST-PORT'] }},{{ r['FLAGS'] }}
+      {% endfor %}
+      {% if conn_rows | length == 0 -%}
+      No active connections found at the time of this report
+      {% endif %}
+
+# Send email via Gmail SMTP
+- name: Send email report via Gmail
+  when:
+    - export_csv | lower == 'yes'
+    - email_to | default('') | length > 0
+  delegate_to: localhost
+  ansible.builtin.mail:
+    host: "smtp.gmail.com"
+    port: 587
+    username: "{{ smtp_username | default('kavineshmanimaran@gmail.com') }}"
+    password: "{{ smtp_password }}"  # App Password - MUST be set in AAP credentials
+    from: "{{ smtp_username | default('kavineshmanimaran@gmail.com') }}"  # Gmail requires from = username
+    to: "{{ email_to }}"
+    subject: "FMC Connection Status Report - {{ inventory_hostname }} - {{ uat_started_at }}"
+    body: |
+      FMC Connection Status Report
+      ============================
+      
+      Report Details:
+      - FMC Host: {{ inventory_hostname }} ({{ ansible_host }})
+      - Generated: {{ ansible_date_time.date }} at {{ ansible_date_time.time }}
+      - Total Connections: {{ conn_rows | length }}
+      - FTD Devices: {{ device_list | default([]) | length }}
+      
+      {% if conn_rows | length > 0 %}
+      Top 5 Active Connections:
+      {% for conn in conn_rows[:5] %}
+      {{ loop.index }}. {{ conn.Protocol }} | {{ conn.SRC_IP }}:{{ conn['SRC-PORT'] }} → {{ conn.DST_IP }}:{{ conn['DST-PORT'] }} | Flags: {{ conn.FLAGS | default('none') }}
+      {% endfor %}
+      {% if conn_rows | length > 5 %}
+      
+      ... and {{ conn_rows | length - 5 }} more connections (see attached CSV for full details)
+      {% endif %}
+      {% else %}
+      No active connections were found at the time of this report.
+      This could indicate:
+      - No current traffic through the FTD devices
+      - Collection method issues
+      - FTD devices may be in standby mode
+      {% endif %}
+      
+      ---
+      This is an automated report from Ansible Automation Platform
+      For questions, contact your network administrator
+    attach:
+      - "connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv"
+    secure: "starttls"  # Required for Gmail port 587
+    charset: "utf-8"
+  register: email_result
+  failed_when: false
+  no_log: false  # Set to true in production to hide password in logs
+
+# Email status notification
+- name: Report email delivery status
+  delegate_to: localhost
+  ansible.builtin.debug:
+    msg: |
+      {% if email_result is defined and email_result.failed | default(false) %}
+      ⚠️ EMAIL DELIVERY FAILED
+      Error: {{ email_result.msg | default('Unknown error') }}
+      
+      Troubleshooting:
+      1. Check Gmail App Password is set correctly
+      2. Verify 2FA is enabled on Gmail account
+      3. Ensure port 587 is not blocked
+      4. Check smtp_password variable is defined
+      
+      CSV saved locally: connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv
+      {% elif email_result is defined %}
+      ✅ Email sent successfully to: {{ email_to }}
+      - Gmail account: {{ smtp_username | default('kavineshmanimaran@gmail.com') }}
+      - Attachment: connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv
+      {% else %}
+      📧 Email not sent (no recipient configured or email disabled)
+      {% endif %}
+
+# GitHub upload section remains the same
+- name: Upload to GitHub (if configured)
+  when:
+    - export_csv | lower == 'yes'
+    - store_to_repo | default('no') | lower == 'yes'
+  block:
+    - name: Read CSV file for GitHub upload
+      delegate_to: localhost
+      ansible.builtin.slurp:
+        src: "connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv"
+      register: csv_content
+
+    - name: Upload CSV to GitHub
+      delegate_to: localhost
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ github_repo_owner }}/{{ github_repo_name }}/contents/{{ github_repo_path }}/connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv"
+        method: PUT
+        headers:
+          Authorization: "token {{ github_token }}"
+          Accept: "application/vnd.github.v3+json"
+        body_format: json
+        body:
+          message: "Add connection status report - {{ inventory_hostname }} ({{ uat_started_at }})"
+          content: "{{ csv_content.content }}"
+          branch: "{{ github_branch | default('master') }}"
+        status_code: [200, 201]
+        validate_certs: yes
+      register: github_result
+      failed_when: false
+
+    - name: Report GitHub upload status
+      delegate_to: localhost
+      ansible.builtin.debug:
+        msg: |
+          {% if github_result.status | default(0) in [200, 201] %}
+          ✅ GitHub upload successful
+          - Repository: {{ github_repo_owner }}/{{ github_repo_name }}
+          - Branch: {{ github_branch | default('master') }}
+          - Path: {{ github_repo_path }}/connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv
+          {% else %}
+          ⚠️ GitHub upload failed: {{ github_result.msg | default('Check token and permissions') }}
+          {% endif %}
+
+# Final comprehensive summary
+- name: Final delivery summary
+  delegate_to: localhost
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      📊 FMC CONNECTION STATUS REPORT COMPLETE
+      ========================================
+      
+      Data Collection:
+      ✓ Connections found: {{ conn_rows | length }}
+      ✓ FTD devices checked: {{ device_list | length }}
+      
+      Report Delivery:
+      {% if export_csv | lower == 'yes' %}
+      ✓ CSV: connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv
+      {% endif %}
+      {% if email_result is defined and not email_result.failed | default(false) %}
+      ✓ Email: Sent to {{ email_to }}
+      {% elif email_to | default('') | length > 0 %}
+      ✗ Email: Failed (check App Password)
+      {% endif %}
+      {% if github_result is defined and github_result.status | default(0) in [200, 201] %}
+      ✓ GitHub: Uploaded successfully
+      {% elif store_to_repo | lower == 'yes' %}
+      ✗ GitHub: Upload failed
+      {% endif %}
+      
+      Timestamp: {{ uat_started_at }}
+      ========================================

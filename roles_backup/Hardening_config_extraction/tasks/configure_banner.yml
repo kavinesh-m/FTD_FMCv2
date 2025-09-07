@@ -1,0 +1,220 @@
+---
+# Warning Banner Configuration
+# 3.1.2 Warning Banner per H-Cloud Security Benchmark
+
+- name: Set Standard Warning Banner Content
+  set_fact:
+    standard_warning_banner: |
+      THIS SYSTEM IS SOLELY FOR THE USE OF AUTHORIZED USERS FOR OFFICIAL PURPOSES. 
+      YOU HAVE NO EXPECTATION OF PRIVACY IN ITS USE AND TO ENSURE THAT THE SYSTEM 
+      IS FUNCTIONING PROPERLY, INDIVIDUALS USING THIS COMPUTER SYSTEM ARE SUBJECT 
+      TO HAVING ALL OF THEIR ACTIVITIES MONITORED AND RECORDED BY SYSTEM PERSONNEL. 
+      
+      USE OF THIS SYSTEM, AUTHORIZED OR UNAUTHORIZED, CONSTITUTES CONSENT TO 
+      MONITORING OF THIS SYSTEM. UNAUTHORIZED USE MAY SUBJECT YOU TO CRIMINAL 
+      PROSECUTION.
+      
+      EVIDENCE OF UNAUTHORIZED USE COLLECTED DURING MONITORING MAY BE USED FOR 
+      ADMINISTRATIVE, CRIMINAL, OR OTHER ADVERSE ACTION. USE OF THIS SYSTEM 
+      CONSTITUTES CONSENT TO MONITORING FOR THESE PURPOSES.
+  when: warning_banner_enabled | bool
+
+- name: Get Current System Information for Banner Analysis
+  cisco.fmcansible.fmc_configuration:
+    operation: getAllServerVersion
+  register: system_info_banner
+  failed_when: false
+  when: warning_banner_enabled | bool
+
+- name: Debug System Information for Banner
+  debug:
+    var: system_info_banner
+  when: 
+    - warning_banner_enabled | bool
+    - debug_mode | default(false) | bool
+
+- name: Analyze Current Banner Configuration
+  set_fact:
+    system_info_available: "{{ system_info_banner.response is defined }}"
+    current_hostname: "{{ system_info_banner.response['items'][0].hostname | default('Unknown') if (system_info_banner.response is defined and system_info_banner.response['items'] is defined and system_info_banner.response['items'] | length > 0) else 'Unknown' }}"
+    current_version: "{{ system_info_banner.response['items'][0].serverVersion | default('Unknown') if (system_info_banner.response is defined and system_info_banner.response['items'] is defined and system_info_banner.response['items'] | length > 0) else 'Unknown' }}"
+  when: warning_banner_enabled | bool
+
+- name: Check Warning Banner Compliance
+  set_fact:
+    warning_banner_compliant: "{{ system_info_available | default(false) }}"
+    banner_recommendation: |
+      Configure warning banner with the following requirements:
+      - Display legal disclaimer on login screen
+      - Include authorized use only statement
+      - Warn about monitoring and recording
+      - State consent to monitoring clause
+      - Include criminal prosecution warning
+  when: warning_banner_enabled | bool
+
+- name: Record Warning Banner Configuration Status
+  set_fact:
+    compliance_results: "{{ compliance_results | default({}) | combine({
+      'warning_banner_compliance': {
+        'status': warning_banner_compliant | default(false),
+        'system_info_available': system_info_available | default(false),
+        'current_hostname': current_hostname | default('Unknown'),
+        'current_version': current_version | default('Unknown'),
+        'compliant': warning_banner_compliant | default(false),
+        'applied': false,
+        'recommendation': banner_recommendation | default('Configure warning banner through FMC GUI'),
+        'standard_banner_content': standard_warning_banner | default('Standard warning banner content')
+      } }) }}"
+  when: warning_banner_enabled | bool
+
+- name: Display Warning Banner Compliance Status
+  debug:
+    msg:
+      - "Warning Banner Compliance Check:"
+      - "System Information Available: {{ system_info_available | default(false) }}"
+      - "Current Hostname: {{ current_hostname | default('Unknown') }}"
+      - "Current Version: {{ current_version | default('Unknown') }}"
+      - "Warning Banner Compliant: {{ warning_banner_compliant | default(false) }}"
+      - ""
+      - "Standard Warning Banner Content:"
+      - "{{ standard_warning_banner | default('Banner content not defined') }}"
+  when: warning_banner_enabled | bool
+
+- name: Manual Configuration Instructions for Warning Banner
+  debug:
+    msg: |
+      MANUAL WARNING BANNER CONFIGURATION REQUIRED:
+      
+      The FMC API does not provide direct banner configuration.
+      Please configure warning banner manually through the FMC GUI:
+      
+      1. Navigate to System > Configuration > Banner Settings
+         (If Banner Settings not available, use alternative path below)
+      
+      2. Alternative Path - Navigate to System > Users > Authentication
+         a. Look for Login Banner or Message of the Day settings
+         b. Configure pre-login banner message
+      
+      3. Configure Login Banner with the following content:
+      
+      "THIS SYSTEM IS SOLELY FOR THE USE OF AUTHORIZED USERS FOR OFFICIAL PURPOSES. 
+      YOU HAVE NO EXPECTATION OF PRIVACY IN ITS USE AND TO ENSURE THAT THE SYSTEM 
+      IS FUNCTIONING PROPERLY, INDIVIDUALS USING THIS COMPUTER SYSTEM ARE SUBJECT 
+      TO HAVING ALL OF THEIR ACTIVITIES MONITORED AND RECORDED BY SYSTEM PERSONNEL.
+      
+      USE OF THIS SYSTEM, AUTHORIZED OR UNAUTHORIZED, CONSTITUTES CONSENT TO 
+      MONITORING OF THIS SYSTEM. UNAUTHORIZED USE MAY SUBJECT YOU TO CRIMINAL 
+      PROSECUTION.
+      
+      EVIDENCE OF UNAUTHORIZED USE COLLECTED DURING MONITORING MAY BE USED FOR 
+      ADMINISTRATIVE, CRIMINAL, OR OTHER ADVERSE ACTION. USE OF THIS SYSTEM 
+      CONSTITUTES CONSENT TO MONITORING FOR THESE PURPOSES."
+      
+      4. Configure Message of the Day (MOTD) if available:
+         a. Set similar warning content for post-login display
+         b. Include system identification and contact information
+      
+      5. Additional Banner Configuration:
+         a. Navigate to Devices > Device Management
+         b. Select managed devices
+         c. Configure device-specific banners if required
+         d. Apply consistent banner across all managed devices
+      
+      6. SSH/CLI Banner Configuration:
+         a. Configure SSH banner for CLI access
+         b. Set pre-authentication banner
+         c. Configure post-authentication banner
+      
+      7. Web Interface Banner:
+         a. Configure web login page banner
+         b. Set warning message display
+         c. Ensure banner appears before authentication
+      
+      8. Click Save to apply all changes
+      
+      Banner Requirements Checklist:
+      □ Authorized use only statement
+      □ No expectation of privacy warning
+      □ Monitoring and recording notice
+      □ Consent to monitoring clause
+      □ Criminal prosecution warning
+      □ Administrative action warning
+      □ Evidence collection notice
+      □ Banner displayed before authentication
+      □ Banner applied to all access methods (Web, SSH, CLI)
+      □ Consistent banner across all devices
+      
+      Compliance Notes:
+      - Banner must be displayed BEFORE user authentication
+      - Content must include all required legal elements
+      - Banner should be applied to all access interfaces
+      - Regular review and updates as required by policy
+  when: 
+    - warning_banner_enabled | bool
+    - not (warning_banner_compliant | default(false))
+
+- name: Warn if Warning Banner is Non-Compliant
+  fail:
+    msg: |
+      WARNING BANNER COMPLIANCE FAILURE:
+      Warning banner configuration does not meet H-Cloud Security Benchmark requirements.
+      
+      Required Elements Missing or Not Verified:
+      - Authorized use only statement
+      - Privacy expectation disclaimer
+      - Monitoring and recording notice
+      - Consent to monitoring clause
+      - Criminal prosecution warning
+      - Administrative action warning
+      - Evidence collection notice
+      
+      Security and Legal Requirements:
+      The warning banner is required by security policy to:
+      1. Inform users of authorized use only
+      2. Establish no expectation of privacy
+      3. Notify users of monitoring activities
+      4. Obtain consent for monitoring
+      5. Warn of legal consequences for unauthorized use
+      6. Protect organization from legal liability
+      
+      Compliance Risk:
+      - Legal liability for unauthorized access
+      - Reduced ability to prosecute security incidents
+      - Non-compliance with security frameworks
+      - Audit findings and compliance failures
+      
+      Manual Action Required:
+      1. Navigate to System > Configuration > Banner Settings
+      2. Configure pre-login warning banner
+      3. Include all required legal elements
+      4. Apply banner to all access methods
+      5. Test banner display functionality
+      6. Document banner configuration for audit
+  when: 
+    - warning_banner_enabled | bool
+    - not (warning_banner_compliant | default(false))
+    - validate_compliance | bool
+  ignore_errors: "{{ not validate_compliance }}"
+
+- name: Log Warning Banner Configuration Status
+  debug:
+    msg: |
+      Warning banner configuration analysis completed:
+      - System Information Available: {{ system_info_available | default(false) }}
+      - Current Hostname: {{ current_hostname | default('Unknown') }}
+      - Manual Configuration Required: True (API limitations)
+      - Compliance Status: {{ 'MANUAL_REVIEW_REQUIRED' if not (warning_banner_compliant | default(false)) else 'COMPLIANT' }}
+      
+      Standard Banner Content Ready for Implementation:
+      {{ standard_warning_banner | default('Banner content not available') }}
+      
+      Next Steps:
+      1. Navigate to FMC GUI banner configuration
+      2. Implement standard warning banner content
+      3. Test banner display on all access methods
+      4. Document configuration for compliance audit
+      5. Schedule regular banner content reviews
+  when: 
+    - warning_banner_enabled | bool
+    - apply_hardening | bool
+

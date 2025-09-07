@@ -1,0 +1,13 @@
+---
+- name: Run packet-tracer (diagnostic-cli)
+  ansible.netcommon.cli_command:
+    command: >-
+      system support diagnostic-cli
+      "packet-tracer input {{ ingress_intf | default('inside') }} {{ proto | default('tcp') }}
+      {{ src }} 12345 {{ dst }} {{ port | default(80) }}"
+  register: pkt
+
+- name: Save result
+  ansible.builtin.copy:
+    dest: "packet_tracer_{{ inventory_hostname }}_{{ uat_started_at }}.txt"
+    content: "{{ pkt.stdout | default('') }}"

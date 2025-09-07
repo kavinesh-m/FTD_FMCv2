@@ -1,0 +1,40 @@
+---
+- name: Validate required inputs based on operation type
+  ansible.builtin.assert:
+    that:
+      - cluster_name is defined
+      - route_action is defined
+      - route_action in ['create', 'delete', 'modify']
+    fail_msg: "Missing basic inputs for static route task."
+
+# For single operation
+- name: Validate single operation inputs
+  when: operation_type | default('single') == 'single'
+  ansible.builtin.assert:
+    that:
+      - interface_name is defined
+      - route_network is defined
+      - route_gateway is defined
+      - route_metric is defined or route_action == 'delete'
+    fail_msg: "Missing inputs for single static route operation. Required: interface_name, route_network, route_gateway, route_metric"
+
+# For bulk operations
+- name: Validate bulk operation inputs
+  when: operation_type | default('single') == 'bulk'
+  ansible.builtin.assert:
+    that:
+      - routes is defined
+      - routes | length > 0
+    fail_msg: "Missing 'routes' list for bulk operation"
+
+- name: Capture pre-change snapshot marker (timestamp)
+  ansible.builtin.set_fact:
+    uat_started_at: "{{ lookup('ansible.builtin.pipe','date +%Y-%m-%d_%H-%M-%S') }}"
+
+- name: Display operation summary
+  ansible.builtin.debug:
+    msg:
+      - "Operation Type: {{ operation_type | default('single') }}"
+      - "Action: {{ route_action }}"
+      - "Cluster: {{ cluster_name }}"
+      - "Deploy Now: {{ deploy_now | default(true) }}"

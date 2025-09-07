@@ -1,0 +1,15 @@
+---
+# Add pre-checks for all config use cases here
+- name: Validate Firewall Rule Creation Inputs
+  when: use_case == 'rule_create'
+  ansible.builtin.assert:
+    that:
+      - policy_name is defined
+      - rule_name is defined
+
+- name: Validate VLAN Creation Inputs
+  when: use_case == 'vlan_create'
+  ansible.builtin.assert:
+    that:
+      - vlan_id is defined
+      - if_name is defined

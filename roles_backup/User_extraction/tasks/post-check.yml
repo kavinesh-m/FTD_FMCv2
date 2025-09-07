@@ -1,0 +1,18 @@
+---
+- name: Display extraction summary
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "EXTRACTION SUMMARY"
+      - "========================================="
+      - "Execution ID: {{ execution_id }}"
+      - "Status: COMPLETED"
+      - "Target: {{ target_system | upper }}"
+      - "Users Found: {{ extraction_results.users_found | default(0) }}"
+      - "Authentication Realms: {{ extraction_results.realms_found | default(0) }}"
+      - "RADIUS Servers: {{ extraction_results.radius_found | default(0) }}"
+      - "Files Generated:"
+      - "  - Report: /tmp/user_role_report_{{ execution_id }}.txt"
+      - "  - Users CSV: /tmp/users_extract_{{ execution_id }}.csv (if users found)"
+      - "  - Raw JSON files saved in /tmp/"
+      - "========================================="

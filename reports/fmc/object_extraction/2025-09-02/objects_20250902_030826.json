@@ -1,0 +1,1578 @@
+[
+    {
+        "id": "cb7116e8-66a6-480b-8f9b-295191a0940a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/cb7116e8-66a6-480b-8f9b-295191a0940a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865601,
+            "wildcard": false
+        },
+        "name": "any-ipv4",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "0.0.0.0/0"
+    },
+    {
+        "description": "inside_network",
+        "id": "0050569B-DF62-0ed3-0000-004295214249",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/0050569B-DF62-0ed3-0000-004295214249"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "timestamp": 1755960194214,
+            "wildcard": false
+        },
+        "name": "inside_network",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "192.168.100.0/24"
+    },
+    {
+        "id": "86caab8a-9bdd-420d-858b-5690fde8ce58",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/86caab8a-9bdd-420d-858b-5690fde8ce58"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865600,
+            "wildcard": false
+        },
+        "name": "IPv4-Benchmark-Tests",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "198.18.0.0/15"
+    },
+    {
+        "id": "f0ce41ae-6ee9-4e00-8762-da9370c4fee5",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/f0ce41ae-6ee9-4e00-8762-da9370c4fee5"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865599,
+            "wildcard": false
+        },
+        "name": "IPv4-Link-Local",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "169.254.0.0/16"
+    },
+    {
+        "id": "5622db1c-5cd5-4199-a4c8-d8f86dec3bd4",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/5622db1c-5cd5-4199-a4c8-d8f86dec3bd4"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865600,
+            "wildcard": false
+        },
+        "name": "IPv4-Multicast",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "224.0.0.0/4"
+    },
+    {
+        "id": "95916354-5aa1-4057-8eea-b42a5a207abc",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/95916354-5aa1-4057-8eea-b42a5a207abc"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865598,
+            "wildcard": false
+        },
+        "name": "IPv4-Private-10.0.0.0-8",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "10.0.0.0/8"
+    },
+    {
+        "id": "b7a78a7d-20c5-47b2-b02f-86b4360112ac",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/b7a78a7d-20c5-47b2-b02f-86b4360112ac"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865598,
+            "wildcard": false
+        },
+        "name": "IPv4-Private-172.16.0.0-12",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "172.16.0.0/12"
+    },
+    {
+        "id": "1dcefdd8-07f7-438a-9221-97d63710614e",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/1dcefdd8-07f7-438a-9221-97d63710614e"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865598,
+            "wildcard": false
+        },
+        "name": "IPv4-Private-192.168.0.0-16",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "192.168.0.0/16"
+    },
+    {
+        "id": "1047b91f-db3a-45b8-9c10-f48ed3f0c3d6",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/1047b91f-db3a-45b8-9c10-f48ed3f0c3d6"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_6",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865601,
+            "wildcard": false
+        },
+        "name": "IPv6-IPv4-Mapped",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "::ffff:0.0.0.0/96"
+    },
+    {
+        "id": "192c14f2-39d9-409d-81e9-357793bdf1ec",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/192c14f2-39d9-409d-81e9-357793bdf1ec"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_6",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865599,
+            "wildcard": false
+        },
+        "name": "IPv6-Link-Local",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "fe80::/10"
+    },
+    {
+        "id": "0434674f-87f8-4e17-810e-97100407858b",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/0434674f-87f8-4e17-810e-97100407858b"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_6",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865599,
+            "wildcard": false
+        },
+        "name": "IPv6-Private-Unique-Local-Addresses",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "fc00::/7"
+    },
+    {
+        "id": "04ea3f1f-f5a9-4eca-b051-487ebeb4c97f",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/04ea3f1f-f5a9-4eca-b051-487ebeb4c97f"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865600,
+            "wildcard": false
+        },
+        "name": "IPv6-to-IPv4-Relay-Anycast",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "192.88.99.0/24"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295153903",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/0050569B-DF62-0ed3-0000-004295153903"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "timestamp": 1755637743741,
+            "wildcard": false
+        },
+        "name": "NET_APPS",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "172.20.30.0/24"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295153885",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/0050569B-DF62-0ed3-0000-004295153885"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "timestamp": 1755637742816,
+            "wildcard": false
+        },
+        "name": "NET_USERS",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "172.20.10.0/24"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295214267",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/0050569B-DF62-0ed3-0000-004295214267"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "timestamp": 1755960216293,
+            "wildcard": false
+        },
+        "name": "outside_network",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "192.168.200.0/24"
+    },
+    {
+        "description": "Vlan 197",
+        "id": "0050569B-DF62-0ed3-0000-004295215495",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkaddresses",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networks/0050569B-DF62-0ed3-0000-004295215495"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "ipType": "V_4",
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "NetworkAddress",
+            "timestamp": 1755966441324,
+            "wildcard": false
+        },
+        "name": "Vlan_197_inside",
+        "object_type": "Network Object",
+        "overridable": false,
+        "type": "Network",
+        "value": "192.168.197.0/24"
+    },
+    {
+        "id": "69fa2a3a-4487-4e3c-816f-4098f684826e",
+        "kind": "Group",
+        "links": {
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkgroups/69fa2a3a-4487-4e3c-816f-4098f684826e"
+        },
+        "literals": [
+            {
+                "type": "Network",
+                "value": "0.0.0.0/0"
+            },
+            {
+                "type": "Network",
+                "value": "::/0"
+            }
+        ],
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865602
+        },
+        "name": "any",
+        "object_type": "Network Group",
+        "overridable": false,
+        "type": "NetworkGroup"
+    },
+    {
+        "id": "15b12b14-dace-4117-b9d9-a9a7dcfa356f",
+        "kind": "Group",
+        "links": {
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkgroups/15b12b14-dace-4117-b9d9-a9a7dcfa356f"
+        },
+        "literals": [
+            {
+                "type": "Network",
+                "value": "10.0.0.0/8"
+            },
+            {
+                "type": "Network",
+                "value": "172.16.0.0/12"
+            },
+            {
+                "type": "Network",
+                "value": "192.168.0.0/16"
+            }
+        ],
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865597
+        },
+        "name": "IPv4-Private-All-RFC1918",
+        "object_type": "Network Group",
+        "overridable": false,
+        "type": "NetworkGroup"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295171327",
+        "kind": "Group",
+        "links": {
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/networkgroups/0050569B-DF62-0ed3-0000-004295171327"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "timestamp": 1755629608881
+        },
+        "name": "USERS_AND_WEB",
+        "object_type": "Network Group",
+        "objects": [
+            {
+                "id": "0050569B-DF62-0ed3-0000-004295153885",
+                "name": "NET_USERS",
+                "type": "Network"
+            },
+            {
+                "id": "0050569B-DF62-0ed3-0000-004295153849",
+                "name": "HOST_WEB_1",
+                "type": "Host"
+            }
+        ],
+        "overridable": false,
+        "type": "NetworkGroup"
+    },
+    {
+        "id": "1834d812-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834d812-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865790
+        },
+        "name": "AOL",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "5190",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834e5f0-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834e5f0-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865790
+        },
+        "name": "Bittorrent",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "6881-6889",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834e712-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834e712-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865792
+        },
+        "name": "DNS_over_TCP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "53",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834e8ca-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834e8ca-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865785
+        },
+        "name": "DNS_over_UDP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "53",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c674-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c674-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865786
+        },
+        "name": "FTP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "21",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "18312adc-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/18312adc-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865783
+        },
+        "name": "HTTP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "80",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834bd00-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834bd00-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865784
+        },
+        "name": "HTTPS",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "443",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c37c-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c37c-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865785
+        },
+        "name": "IMAP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "143",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834d01a-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834d01a-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865788
+        },
+        "name": "LDAP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "389",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c9c6-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c9c6-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865787
+        },
+        "name": "NFSD-TCP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "2049",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834caac-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834caac-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865787
+        },
+        "name": "NFSD-UDP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "2049",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834cb92-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834cb92-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865787
+        },
+        "name": "NTP-TCP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "123",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834cc96-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834cc96-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865788
+        },
+        "name": "NTP-UDP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "123",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c462-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c462-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865786
+        },
+        "name": "POP-2",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "109",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c548-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c548-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865786
+        },
+        "name": "POP-3",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "110",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834ce94-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834ce94-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865788
+        },
+        "name": "RADIUS",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "1645",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834d114-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834d114-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865789
+        },
+        "name": "RIP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "520",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834d204-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834d204-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865789
+        },
+        "name": "SIP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "5060",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834bf44-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834bf44-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865784
+        },
+        "name": "SMTP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "25",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c07a-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c07a-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865785
+        },
+        "name": "SMTPS",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "465",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c264-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c264-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865785
+        },
+        "name": "SNMP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "161",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834c890-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834c890-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865787
+        },
+        "name": "SSH",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "22",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834d6e6-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834d6e6-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865789
+        },
+        "name": "SYSLOG",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "514",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295153921",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/0050569B-DF62-0ed3-0000-004295153921"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "timestamp": 1755637746145
+        },
+        "name": "TCP_443",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "443",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295153939",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/0050569B-DF62-0ed3-0000-004295153939"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "timestamp": 1755637747111
+        },
+        "name": "TCP_8443",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "8443",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834e50a-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834e50a-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865791
+        },
+        "name": "TCP_high_ports",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "1021-65535",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "28e058e4-43b0-11e2-9bcd-7c2f9ed9bbee",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/28e058e4-43b0-11e2-9bcd-7c2f9ed9bbee"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865790
+        },
+        "name": "TELNET",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "23",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834d5e2-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834d5e2-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865789
+        },
+        "name": "TFTP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "69",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295153957",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/0050569B-DF62-0ed3-0000-004295153957"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "timestamp": 1755637748151
+        },
+        "name": "UDP_53",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "53",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834da1a-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834da1a-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865791
+        },
+        "name": "Yahoo_Messenger_Messages",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "5050",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834db96-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834db96-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865791
+        },
+        "name": "YahooMessenger_Voice_Chat_TCP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "5000-5001",
+        "protocol": "TCP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "1834dc86-38bb-11e2-86aa-62f0c593a59a",
+        "kind": "Object",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/protocolportobjects/1834dc86-38bb-11e2-86aa-62f0c593a59a"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "readOnly": {
+                "reason": "SYSTEM",
+                "state": true
+            },
+            "timestamp": 1752739865791
+        },
+        "name": "YahooMessenger_Voice_Chat_UDP",
+        "object_type": "Port Object",
+        "overridable": false,
+        "port": "5000-5010",
+        "protocol": "UDP",
+        "type": "ProtocolPortObject"
+    },
+    {
+        "id": "0050569B-DF62-0ed3-0000-004295171345",
+        "kind": "Group",
+        "links": {
+            "parent": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/ports",
+            "self": "https://10.12.201.212/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/object/portobjectgroups/0050569B-DF62-0ed3-0000-004295171345"
+        },
+        "metadata": {
+            "domain": {
+                "id": "e276abec-e0f2-11e3-8169-6d9ed49b625f",
+                "name": "Global",
+                "type": "Domain"
+            },
+            "lastUser": {
+                "name": "admin"
+            },
+            "parentType": "Port",
+            "timestamp": 1755629609874
+        },
+        "name": "WEB_SVCS",
+        "object_type": "Port Group",
+        "objects": [
+            {
+                "id": "0050569B-DF62-0ed3-0000-004295153921",
+                "name": "TCP_443",
+                "overridable": false,
+                "port": "443",
+                "type": "ProtocolPortObject"
+            },
+            {
+                "id": "0050569B-DF62-0ed3-0000-004295153939",
+                "name": "TCP_8443",
+                "overridable": false,
+                "port": "8443",
+                "type": "ProtocolPortObject"
+            }
+        ],
+        "overridable": false,
+        "type": "PortObjectGroup"
+    }
+]

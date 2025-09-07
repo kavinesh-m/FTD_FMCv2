@@ -1,0 +1,66 @@
+---
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that:
+      - policy_name is defined
+      - action_type in ['disable', 'delete', 'extract_disabled']
+    fail_msg: "Missing required inputs: policy_name and action_type required"
+
+- name: Parse rule list if provided
+  when: rule_list is defined
+  ansible.builtin.set_fact:
+    target_rules: "{{ (rule_list | string).split(',') | map('trim') | reject('equalto','') | list }}"
+
+- name: Get FMC auth token
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  register: auth_response
+
+- name: Set auth token and domain
+  ansible.builtin.set_fact:
+    fmc_access_token: "{{ auth_response.x_auth_access_token }}"
+    fmc_domain_uuid: "{{ auth_response.domain_uuid | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+# Get ALL policies, then find the one we need
+- name: Get all access policies
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies?expanded=false"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: all_policies_response
+
+- name: Debug API response
+  ansible.builtin.debug:
+    msg: "Successfully retrieved access policies"
+  when: all_policies_response.json is defined
+
+- name: Extract policy list
+  ansible.builtin.set_fact:
+    policy_list: "{{ all_policies_response.json['items'] | default([]) }}"
+
+- name: Find our policy
+  ansible.builtin.set_fact:
+    policy_id: "{{ item.id }}"
+    policy_found: true
+  loop: "{{ policy_list }}"
+  when: item.name == policy_name
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Verify policy was found
+  ansible.builtin.fail:
+    msg: "Policy '{{ policy_name }}' not found in FMC"
+  when: policy_id is not defined
+
+- name: Display selected policy
+  ansible.builtin.debug:
+    msg: "Selected policy: {{ policy_name }} (ID: {{ policy_id }})"
+  when: policy_id is defined

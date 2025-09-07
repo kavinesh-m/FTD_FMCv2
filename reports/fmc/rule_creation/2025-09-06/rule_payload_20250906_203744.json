@@ -1,0 +1,33 @@
+{
+    "action": "ALLOW",
+    "destinationNetworks": {
+        "objects": [
+            {
+                "id": "any-ipv4",
+                "name": "any-ipv4",
+                "type": "AnyIPv4"
+            }
+        ]
+    },
+    "destinationPorts": {
+        "objects": [
+            {
+                "id": "1834bd00-38bb-11e2-86aa-62f0c593a59a",
+                "name": "HTTPS",
+                "type": "ProtocolPortObject"
+            }
+        ]
+    },
+    "enabled": true,
+    "name": "UAT_ALLOW_HTTPS_ANY_ANY",
+    "sourceNetworks": {
+        "objects": [
+            {
+                "id": "any-ipv4",
+                "name": "any-ipv4",
+                "type": "AnyIPv4"
+            }
+        ]
+    },
+    "type": "AccessRule"
+}

@@ -1,0 +1,2 @@
+Protocol,SRC-INT,SRC_IP,SRC-PORT,DST-INT,DST_IP,DST_PORT,FLAGS
+N/A - Use SSH to FTD,N/A - Use SSH to FTD,N/A - Use SSH to FTD,N/A - Use SSH to FTD,N/A - Use SSH to FTD,N/A - Use SSH to FTD,N/A - Use SSH to FTD,Connection details require CLI: show conn detail

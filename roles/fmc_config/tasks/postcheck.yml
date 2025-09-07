@@ -1,0 +1,13 @@
+---
+# Post-check tasks for all config use cases
+- name: Display Generic Success Summary
+  ansible.builtin.debug:
+    msg: "SUCCESS: Configuration use case '{{ use_case }}' completed."
+
+- name: Placeholder for Bitbucket Upload
+  ansible.builtin.debug:
+    msg: "POST-CHECK: Logic to generate and upload reports would go here."
+
+- name: Placeholder for Email Notification
+  ansible.builtin.debug:
+    msg: "POST-CHECK: Logic to send email notification would go here."

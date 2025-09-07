@@ -1,0 +1,45 @@
+========================================
+FMC Static Route Configuration Report
+========================================
+Execution ID: 20250903_205920
+Date: 2025-09-03 20:59:20
+Status: COMPLETED
+
+Device Information:
+-------------------
+FMC Host: 10.12.201.212
+Device Name: ciscoftd01
+
+Operation Details:
+-----------------
+Action: CREATE
+Network: 11.12.13.0/24
+Gateway: 11.12.13.1
+Interface: VLAN_1212
+Metric: 1
+
+Objects Used/Created:
+--------------------
+Network Object: n11.12.13.0_24
+  - Type: Network
+  - Value: 11.12.13.0/24
+  - Status: Created
+
+Host Object: h11.12.13.1
+  - Type: Host
+  - Value: 11.12.13.1/32
+  - Status: Created
+
+Routes Modified: 1
+  1. CREATED: 11.12.13.0/24
+     Gateway: 11.12.13.1
+
+Deployment Status:
+-----------------
+Deployment Required: True
+Deploy Now: false
+Status: Pending - Manual deployment required
+
+========================================
+End of Report
+========================================

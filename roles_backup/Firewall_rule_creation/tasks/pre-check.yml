@@ -1,0 +1,76 @@
+---
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that:
+      - policy_name is defined and policy_name | length > 0
+      - rule_name is defined and rule_name | length > 0
+      - src is defined and src | length > 0
+      - dst is defined and dst | length > 0
+      - services is defined and services | length > 0
+      - action is defined and action | length > 0
+    fail_msg: "Missing required parameters for rule creation"
+
+- name: Authenticate with FMC
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  register: fmc_auth
+
+- name: Set FMC tokens
+  ansible.builtin.set_fact:
+    fmc_access_token: "{{ fmc_auth.x_auth_access_token }}"
+    fmc_domain_uuid: "{{ fmc_auth.domain_uuid | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+- name: Get all access policies
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: policies_result
+
+- name: Find policy by name
+  ansible.builtin.set_fact:
+    policy_id: "{{ item.id }}"
+  with_items: "{{ policies_result.json['items'] }}"
+  when: item.name == policy_name
+
+- name: Fail if policy not found
+  ansible.builtin.fail:
+    msg: "Access Policy '{{ policy_name }}' not found"
+  when: policy_id is not defined or policy_id | length == 0
+
+- name: Get device records if deployment needed
+  when: 
+    - cluster_name is defined
+    - cluster_name | length > 0
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: devices_result
+
+- name: Find device UUID
+  ansible.builtin.set_fact:
+    device_uuid: "{{ item.id }}"
+  with_items: "{{ devices_result.json['items'] }}"
+  when: 
+    - cluster_name is defined
+    - devices_result is defined
+    - item.name == cluster_name
+
+- name: Display pre-check summary
+  ansible.builtin.debug:
+    msg:
+      - "Policy: {{ policy_name }} ({{ policy_id | default('Not found') }})"
+      - "Rule: {{ rule_name }}"
+      - "Action: {{ action }}"
+      - "Device: {{ cluster_name | default('N/A') }} ({{ device_uuid | default('Not found') }})"

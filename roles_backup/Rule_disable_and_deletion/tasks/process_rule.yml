@@ -1,0 +1,32 @@
+---
+- name: Disable rule
+  when: action_type == 'disable'
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules/{{ rule_item.id }}"
+    method: PUT
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    body_format: json
+    body:
+      id: "{{ rule_item.id }}"
+      name: "{{ rule_item.name }}"
+      enabled: false
+      type: "AccessRule"
+    validate_certs: no
+    status_code: [200]
+  register: disable_result
+
+- name: Delete rule
+  when: action_type == 'delete'
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules/{{ rule_item.id }}"
+    method: DELETE
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+    status_code: [200, 204]
+  register: delete_result
+
+- name: Track processed rule
+  ansible.builtin.set_fact:
+    processed_rules: "{{ processed_rules + [{'name': rule_item.name, 'id': rule_item.id, 'action': action_type, 'timestamp': report_date + ' ' + report_time}] }}"

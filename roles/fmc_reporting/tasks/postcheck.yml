@@ -1,0 +1,4 @@
+---
+- name: Display Reporting Summary
+  ansible.builtin.debug:
+    msg: "SUCCESS: Reporting use case '{{ use_case }}' completed."

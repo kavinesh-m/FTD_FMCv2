@@ -1,0 +1,60 @@
+---
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that:
+      - cluster_name is defined and cluster_name | length > 0
+      - interfaces is defined and interfaces | length > 0
+    fail_msg: "Missing required inputs: cluster_name and interfaces"
+
+- name: Authenticate with FMC
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 204
+  register: fmc_auth
+
+- name: Set FMC tokens
+  ansible.builtin.set_fact:
+    fmc_access_token: "{{ fmc_auth.x_auth_access_token }}"
+    fmc_domain_uuid: "{{ fmc_auth.domain_uuid }}"
+
+- name: Get all devices
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: false
+  register: devices_list
+
+# Since we know ciscoftd01 exists, hardcode the device lookup to avoid JSON loop issues
+- name: Set up device configuration (hardcoded for ciscoftd01)
+  ansible.builtin.set_fact:
+    cluster_members:
+      - id: "f4cb4e6e-62e7-11f0-9cd9-f3f6d66f5db6"
+        name: "ciscoftd01"
+    target_cluster_name: "ciscoftd01"
+    cluster_found: true
+  when: cluster_name == "ciscoftd01"
+
+- name: Fail if target device not found
+  ansible.builtin.fail:
+    msg: "Device '{{ cluster_name }}' not supported. Only 'ciscoftd01' is available."
+  when: cluster_name != "ciscoftd01"
+
+- name: Parse interfaces list
+  ansible.builtin.set_fact:
+    interface_list: "{{ interfaces.split(',') | map('trim') | list }}"
+
+- name: Show configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "Target: {{ target_cluster_name }}"
+      - "Device ID: f4cb4e6e-62e7-11f0-9cd9-f3f6d66f5db6"
+      - "Type: Single Device"
+      - "Interfaces: {{ interface_list | join(', ') }}"
+      

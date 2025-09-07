@@ -1,0 +1,33 @@
+========================================
+FMC Static Route Configuration Report
+========================================
+Execution ID: 20250903_210853
+Date: 2025-09-03 21:08:53
+Status: COMPLETED
+
+Device Information:
+-------------------
+FMC Host: 10.12.201.212
+Device Name: ciscoftd01
+
+Operation Details:
+-----------------
+Action: DELETE
+Network: 11.12.13.0/24
+Gateway: 11.12.13.1
+Interface: VLAN_1212
+Metric: 1
+
+
+Routes Modified: 1
+  1. DELETED: 11.12.13.0/24
+
+Deployment Status:
+-----------------
+Deployment Required: True
+Deploy Now: false
+Status: Pending - Manual deployment required
+
+========================================
+End of Report
+========================================

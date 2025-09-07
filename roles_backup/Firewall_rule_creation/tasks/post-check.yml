@@ -1,0 +1,131 @@
+---
+- name: Fetch rules after change
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules?expanded=true&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: false
+  register: _rules_after
+
+- name: Extract final rule
+  ansible.builtin.set_fact:
+    final_rule: >-
+      {{ (_rules_after.json['items'] | default([]) | selectattr('id','equalto', final_rule_id) | list | first)
+          | default((_rules_after.json['items'] | default([]) | selectattr('name','equalto', rule_name) | list | first) | default({})) }}
+
+# Build a small summary for email/report
+- name: Derive lists for report
+  ansible.builtin.set_fact:
+    rpt_src: "{{ final_rule.sourceNetworks.objects | default([]) | map(attribute='name') | list }}"
+    rpt_dst: "{{ final_rule.destinationNetworks.objects | default([]) | map(attribute='name') | list }}"
+    rpt_svc: "{{ final_rule.destinationPorts.objects | default([]) | map(attribute='name') | list }}"
+    rpt_action: "{{ final_rule.action | default(action | upper) }}"
+    rpt_created_object: "{{ (created_object.name | default('')) if (created_object is defined) else '' }}"
+
+# Correct path to your template inside THIS role
+- name: Render Rule Creation report
+  delegate_to: localhost
+  ansible.builtin.template:
+    src: roles/Firewall_rule_creation/templates/rule_creation_report.j2
+    dest: "/tmp/rule_report_{{ execution_id }}.txt"
+
+# Email (optional)
+- name: Send email notification (optional)
+  when:
+    - send_to_email | default('no') | lower == 'yes'
+    - email_address is defined and email_address | length > 0
+    - smtp_username is defined
+    - smtp_password is defined
+  delegate_to: localhost
+  ansible.builtin.mail:
+    host: "smtp.gmail.com"
+    port: 587
+    username: "{{ smtp_username }}"
+    password: "{{ smtp_password }}"
+    from: "{{ smtp_username }}"
+    to: "{{ email_address }}"
+    subject: "FMC Rule/Object Creation - {{ execution_id }}"
+    body: |
+      FMC Rule/Object Creation
+      ========================
+      Policy: {{ policy_name }}
+      Rule:   {{ rule_name }}
+      Action: {{ rpt_action }}
+      SRC:    {{ rpt_src }}
+      DST:    {{ rpt_dst }}
+      SVC:    {{ rpt_svc }}
+
+      Report attached.
+    attach:
+      - "/tmp/rule_report_{{ execution_id }}.txt"
+      - "/tmp/rule_payload_{{ execution_id }}.json"
+    secure: "starttls"
+    charset: "utf-8"
+  register: email_result
+  failed_when: false
+
+# GitHub upload (optional; unchanged)
+- name: Upload artifacts to GitHub (optional)
+  when:
+    - store_to_repo | default('no') | lower == 'yes'
+    - github_repo_owner is defined
+    - github_repo_name is defined
+    - github_token is defined
+  block:
+    - name: Check repo
+      delegate_to: localhost
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ github_repo_owner }}/{{ github_repo_name }}"
+        method: GET
+        headers:
+          Authorization: "token {{ github_token }}"
+          Accept: "application/vnd.github.v3+json"
+        status_code: [200, 404]
+        validate_certs: yes
+      register: repo_check
+      failed_when: false
+
+    - name: Set branch
+      when: repo_check.status == 200
+      ansible.builtin.set_fact:
+        github_branch_name: "{{ repo_check.json.default_branch | default('main') }}"
+
+    - name: Slurp files
+      when: repo_check.status == 200
+      delegate_to: localhost
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - "/tmp/rule_report_{{ execution_id }}.txt"
+        - "/tmp/rule_payload_{{ execution_id }}.json"
+      register: file_contents
+
+    - name: PUT contents
+      when:
+        - repo_check.status == 200
+        - file_contents is defined
+      delegate_to: localhost
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ github_repo_owner }}/{{ github_repo_name }}/contents/{{ github_repo_path }}/{{ report_date }}/{{ item.item | basename }}"
+        method: PUT
+        headers:
+          Authorization: "token {{ github_token }}"
+          Accept: "application/vnd.github.v3+json"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          message: "FMC Rule/Object Creation - {{ execution_id }}"
+          content: "{{ item.content }}"
+          branch: "{{ github_branch_name }}"
+        status_code: [200, 201]
+        validate_certs: yes
+      loop: "{{ file_contents.results }}"
+      register: github_upload_results
+      failed_when: false
+
+- name: Delivery summary
+  ansible.builtin.debug:
+    msg:
+      - "Email: {{ 'Sent' if email_result is defined else 'Not sent' }}"
+      - "GitHub: {{ 'Uploaded' if github_upload_results is defined else 'Not uploaded' }}"

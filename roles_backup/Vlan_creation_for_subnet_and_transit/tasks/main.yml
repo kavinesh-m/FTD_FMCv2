@@ -1,0 +1,421 @@
+---
+- name: Execute CREATE operation
+  when: operation_type == 'create'
+  block:
+    - name: Parse IPv4 address and netmask
+      ansible.builtin.set_fact:
+        ipv4_addr: "{{ ipv4_address | ansible.utils.ipaddr('address') }}"
+        ipv4_mask: "{{ ipv4_address | ansible.utils.ipaddr('netmask') }}"
+        zone_name_clean: "{{ zone_name[0] if zone_name is sequence and zone_name is not string else zone_name }}"
+
+    - name: Get auth token for FMC
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+        method: POST
+        user: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 204
+      register: auth_response
+
+    - name: Extract auth token
+      ansible.builtin.set_fact:
+        auth_token: "{{ auth_response.x_auth_access_token }}"
+        refresh_token: "{{ auth_response.x_auth_refresh_token }}"
+        domain_uuid: "{{ auth_response.domain_uuid | default(ansible_httpapi_domain_uuid) | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+    - name: Get device UUID
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords?filter=name:{{ device_name }}"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: device_response
+
+    - name: Extract device UUID
+      ansible.builtin.set_fact:
+        device_uuid: "{{ device_response['json']['items'][0]['id'] }}"
+      when: device_response.json is defined
+
+    - name: Get parent interface details
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/physicalinterfaces"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: interfaces_response
+
+    - name: Find parent interface UUID
+      ansible.builtin.set_fact:
+        parent_interface_uuid: "{{ interfaces_response['json']['items'] | selectattr('name', 'equalto', parent_interface) | map(attribute='id') | first | default('') }}"
+      when: interfaces_response.json is defined
+
+    - name: Verify parent interface exists
+      ansible.builtin.fail:
+        msg: "Parent interface {{ parent_interface }} not found on device. Available interfaces: {{ interfaces_response['json']['items'] | map(attribute='name') | list }}"
+      when: parent_interface_uuid == ''
+
+    - name: Debug parent interface UUID
+      ansible.builtin.debug:
+        msg: "Parent interface {{ parent_interface }} UUID: {{ parent_interface_uuid }}"
+
+    # Get all security zones and find the one we need
+    - name: Get all security zones
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/securityzones"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: zone_response
+      ignore_errors: yes
+
+    - name: Find our zone in the list
+      set_fact:
+        zone_id: "{{ item.id }}"
+      loop: "{{ zone_response['json']['items'] | default([]) }}"
+      when: 
+        - zone_response.json is defined
+        - item.name == zone_name_clean
+
+    - name: Debug zone information
+      debug:
+        msg: "Zone {{ zone_name_clean }} ID: {{ zone_id | default('not found - will use name only') }}"
+
+    # Create subinterface with proper structure based on existing VLAN_3000
+    - name: Prepare subinterface payload
+      ansible.builtin.set_fact:
+        subif_payload:
+          name: "{{ parent_interface }}"  # Just parent interface name like existing
+          ifname: "VLAN_{{ vlan_id }}"    # Custom name for the interface
+          subIntfId: "{{ vlan_id | int }}" # This is the key field!
+          vlanId: "{{ vlan_id | int }}"
+          type: "SubInterface"
+          enabled: true
+          MTU: 1500
+          managementOnly: false
+          mode: "NONE"
+          ipv4:
+            static:
+              address: "{{ ipv4_addr }}"
+              netmask: "24"  # Use CIDR notation like the existing VLAN_3000
+          securityZone: "{{ {'id': zone_id, 'type': 'SecurityZone'} if zone_id is defined else omit }}"
+
+    - name: Display payload to be sent
+      debug:
+        var: subif_payload
+
+    - name: Create subinterface via REST API
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/subinterfaces"
+        method: POST
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: "{{ subif_payload }}"
+        validate_certs: no
+        status_code: [200, 201, 202]
+      register: subif_create_result
+
+    - name: Track subinterface creation
+      when: subif_create_result is succeeded
+      ansible.builtin.set_fact:
+        changes_made: "{{ changes_made + ['subinterface_created'] }}"
+        created_subif_id: "{{ subif_create_result.json.id }}"
+        deployment_required: true
+
+    - name: Display creation result
+      debug:
+        msg: 
+          - "Subinterface created successfully!"
+          - "ID: {{ subif_create_result.json.id }}"
+          - "Name: {{ subif_create_result.json.name }}"
+          - "VLAN: {{ subif_create_result.json.vlanId }}"
+      when: subif_create_result is succeeded
+
+- name: Execute DELETE operation
+  when: operation_type == 'delete'
+  block:
+    - name: Get auth token for FMC
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+        method: POST
+        user: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 204
+      register: auth_response
+
+    - name: Extract auth token
+      ansible.builtin.set_fact:
+        auth_token: "{{ auth_response.x_auth_access_token }}"
+        domain_uuid: "{{ auth_response.domain_uuid | default(ansible_httpapi_domain_uuid) | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+    - name: Get device UUID
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords?filter=name:{{ device_name }}"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: device_response
+
+    - name: Extract device UUID
+      ansible.builtin.set_fact:
+        device_uuid: "{{ device_response['json']['items'][0]['id'] }}"
+      when: device_response.json is defined and device_response.json['items'] is defined
+
+    - name: Get all subinterfaces with expanded data
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/subinterfaces?expanded=true"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: all_subifs
+
+    - name: Debug subinterfaces found
+      ansible.builtin.debug:
+        msg: 
+          - "Total subinterfaces found: {{ all_subifs['json']['items'] | default([]) | length }}"
+          - "Looking for VLAN ID: {{ vlan_id }} on interface: {{ parent_interface }}"
+      when: all_subifs.json is defined
+
+    # Find the subinterface with matching VLAN ID
+    - name: Find subinterface to delete
+      ansible.builtin.set_fact:
+        subif_to_delete: "{{ item }}"
+      loop: "{{ all_subifs['json']['items'] | default([]) }}"
+      when:
+        - item.name == parent_interface
+        - item.subIntfId is defined and item.subIntfId | int == vlan_id | int
+      no_log: false
+
+    # If first attempt doesn't work (no subIntfId in list), fetch each one
+    - name: Get detailed info for each subinterface (fallback)
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/subinterfaces/{{ item.id }}"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      loop: "{{ all_subifs['json']['items'] | default([]) }}"
+      register: subif_details
+      when: 
+        - subif_to_delete is not defined
+        - item.name == parent_interface
+
+    - name: Find subinterface to delete from detailed info (fallback)
+      ansible.builtin.set_fact:
+        subif_to_delete: "{{ item.json }}"
+      loop: "{{ subif_details.results | default([]) }}"
+      when: 
+        - subif_to_delete is not defined
+        - item is not skipped | default(false)
+        - item.json is defined
+        - item.json.vlanId is defined
+        - item.json.vlanId | int == vlan_id | int
+
+    - name: Display subinterface to delete
+      ansible.builtin.debug:
+        msg: 
+          - "Found subinterface to delete:"
+          - "ID: {{ subif_to_delete.id }}"
+          - "Name: {{ subif_to_delete.name }}"
+          - "VLAN: {{ subif_to_delete.vlanId | default(subif_to_delete.subIntfId) }}"
+      when: subif_to_delete is defined
+
+    - name: Verify subinterface was found
+      ansible.builtin.fail:
+        msg: "No subinterface found with VLAN ID {{ vlan_id }} on interface {{ parent_interface }}. It may have already been deleted."
+      when: subif_to_delete is not defined
+
+    - name: Delete subinterface
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/subinterfaces/{{ subif_to_delete.id }}"
+        method: DELETE
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+        status_code: [200, 204]
+      register: subif_delete_result
+      when: subif_to_delete is defined
+
+    - name: Track subinterface deletion
+      when: subif_delete_result is succeeded
+      ansible.builtin.set_fact:
+        changes_made: "{{ changes_made + ['subinterface_deleted'] }}"
+        deployment_required: true
+
+    - name: Display deletion result
+      ansible.builtin.debug:
+        msg: "Subinterface with VLAN {{ vlan_id }} deleted successfully"
+      when: subif_delete_result is succeeded
+
+# DEPLOYMENT BLOCK - Modified for FMC policy template issues
+- name: Deploy configuration if requested
+  when: 
+    - deploy_now | default(false) | bool  # Changed default to false
+    - deployment_required | default(false)
+    - changes_made | length > 0
+  block:
+    - name: Ensure we have auth token
+      ansible.builtin.set_fact:
+        auth_token: "{{ auth_token }}"
+      when: auth_token is defined
+
+    - name: Get auth token if not present
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+        method: POST
+        user: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 204
+      register: auth_response
+      when: auth_token is not defined
+
+    - name: Set auth token if just obtained
+      ansible.builtin.set_fact:
+        auth_token: "{{ auth_response.x_auth_access_token }}"
+        domain_uuid: "{{ auth_response.domain_uuid | default(ansible_httpapi_domain_uuid) | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+      when: auth_response is defined and auth_response.x_auth_access_token is defined
+
+    # Alternative health check using deployable devices endpoint
+    - name: Check FMC deployment readiness
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/deployment/deployabledevices"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: deployable_check
+      ignore_errors: yes
+
+    # FIXED: Use bracket notation instead of dot notation
+    - name: Evaluate deployment readiness
+      ansible.builtin.set_fact:
+        fmc_healthy: "{{ deployable_check.status | default(0) == 200 and deployable_check['json']['items'] | default([]) | length > 0 }}"
+        device_found: false
+
+    - name: Check if our device is deployable
+      ansible.builtin.set_fact:
+        device_found: true
+        device_version: "{{ item.version }}"
+      loop: "{{ deployable_check['json']['items'] | default([]) }}"
+      when: 
+        - deployable_check.json is defined
+        - item.name == device_name
+
+    - name: Display FMC readiness status
+      ansible.builtin.debug:
+        msg:
+          - "FMC Deployment Ready: {{ 'YES' if fmc_healthy | default(false) else 'NO' }}"
+          - "Device {{ device_name }} found: {{ 'YES' if device_found else 'NO' }}"
+          - "{% if not fmc_healthy | default(false) or not device_found %}Skipping automatic deployment - manual deployment required{% endif %}"
+
+    # Ensure device_uuid is set
+    - name: Get device UUID for deployment if not set
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords?filter=name:{{ device_name }}"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: device_response_deploy
+      when: device_uuid is not defined
+
+    - name: Set device UUID from response
+      ansible.builtin.set_fact:
+        device_uuid: "{{ device_response_deploy['json']['items'][0]['id'] }}"
+      when: 
+        - device_response_deploy is defined
+        - device_response_deploy.json is defined
+        - device_uuid is not defined
+
+    # Only attempt deployment if FMC is healthy and device is found
+    - name: Deployment attempt
+      when: 
+        - fmc_healthy | default(false)
+        - device_found | default(false)
+      block:
+        - name: Initiate deployment
+          uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/deployment/deploymentrequests"
+            method: POST
+            headers:
+              X-auth-access-token: "{{ auth_token }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              type: "DeploymentRequest"
+              forceDeploy: true
+              ignoreWarning: true
+              version: "{{ device_version }}"
+              deviceList:
+                - "{{ device_uuid }}"
+            validate_certs: no
+            status_code: [200, 201, 202]
+          register: deployment_result
+          ignore_errors: yes
+
+        - name: Track deployment attempt
+          ansible.builtin.set_fact:
+            deployment_attempted: true
+            deployment_task_id: "{{ deployment_result.json.metadata.task.id | default('failed') }}"
+          when: deployment_result is defined and deployment_result.json is defined
+
+        # Monitor deployment status
+        - name: Monitor deployment status
+          when: 
+            - deployment_task_id is defined 
+            - deployment_task_id != 'failed'
+            - deployment_result is succeeded
+          uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/job/taskstatuses/{{ deployment_task_id }}"
+            method: GET
+            headers:
+              X-auth-access-token: "{{ auth_token }}"
+            validate_certs: no
+          register: deploy_status
+          until: deploy_status.json.status is defined and deploy_status.json.status in ['Success', 'SUCCEEDED', 'FAILED', 'Failed', 'SUCCESS', 'Deployed']
+          retries: 30
+          delay: 10
+          ignore_errors: yes
+
+        - name: Display final deployment status
+          when: deploy_status is defined
+          debug:
+            msg: 
+              - "==================================="
+              - "DEPLOYMENT MONITORING RESULT"
+              - "==================================="
+              - "Task ID: {{ deployment_task_id }}"
+              - "Final Status: {{ deploy_status.json.status | default('Unknown') }}"
+              - "Message: {{ deploy_status.json.message | default('Check FMC GUI for details') }}"
+              - "==================================="
+
+    # If deployment skipped or failed
+    - name: Set deployment status summary
+      ansible.builtin.set_fact:
+        deployment_status: |
+          {% if not fmc_healthy | default(false) %}
+          Deployment skipped - FMC not ready. Manual deployment required.
+          {% elif not device_found | default(false) %}
+          Deployment skipped - Device {{ device_name }} not found in deployable devices.
+          {% elif deployment_attempted | default(false) and deployment_result is succeeded %}
+          Deployment initiated - Task ID: {{ deployment_task_id }}
+          Status: {{ deploy_status.json.status | default('In Progress') if deploy_status is defined else 'Check FMC GUI' }}
+          {% else %}
+          Deployment not attempted. Manual deployment required in FMC GUI.
+          {% endif %}
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: "{{ deployment_status }}"

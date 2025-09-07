@@ -1,0 +1,4 @@
+---
+- name: Rollback note
+  ansible.builtin.debug:
+    msg: "Failure encountered. Operator may revert via FMC deployment history or manual cleanup."

@@ -1,0 +1,273 @@
+---
+# FMC API Authentication
+- name: Authenticate with FMC
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  register: auth_response
+
+- name: Extract authentication tokens
+  ansible.builtin.set_fact:
+    auth_token: "{{ auth_response.x_auth_access_token }}"
+    fmc_domain_uuid: "{{ auth_response.domain_uuid | default(default_domain_uuid) }}"
+
+# PRE-DEPLOYMENT SNAPSHOT
+- name: Capture pre-deployment timestamp
+  ansible.builtin.set_fact:
+    pre_deployment_timestamp: "{{ lookup('ansible.builtin.pipe', 'date +\"%Y-%m-%d %H:%M:%S\"') }}"
+
+- name: Get deployable devices (PRE-deployment snapshot)
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/deployabledevices?expanded=true"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: pre_deployable_devices
+
+- name: Get deployment job histories (PRE-deployment)
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/jobhistories?offset=0&limit=25"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: pre_job_histories
+
+- name: Store pre-deployment data
+  ansible.builtin.set_fact:
+    pre_deployment_data:
+      timestamp: "{{ pre_deployment_timestamp }}"
+      devices: "{{ pre_deployable_devices.json.get('items', []) if pre_deployable_devices.status == 200 else [] }}"
+      total_devices: "{{ pre_deployable_devices.json.get('items', []) | length if pre_deployable_devices.status == 200 else 0 }}"
+      devices_with_changes: "{{ pre_deployable_devices.json.get('items', []) | selectattr('upToDate', 'equalto', false) | list | length if pre_deployable_devices.status == 200 else 0 }}"
+      job_count: "{{ pre_job_histories.json.get('items', []) | length if pre_job_histories.status == 200 else 0 }}"
+      last_job: "{{ pre_job_histories.json.get('items', [])[0] if pre_job_histories.status == 200 and pre_job_histories.json.get('items', []) else {} }}"
+
+# WAIT PERIOD
+- name: Display pre-deployment status
+  ansible.builtin.debug:
+    msg:
+      - "Pre-Deployment Snapshot Captured"
+      - "Timestamp: {{ pre_deployment_timestamp }}"
+      - "Total Devices: {{ pre_deployment_data.total_devices }}"
+      - "Devices with Pending Changes: {{ pre_deployment_data.devices_with_changes }}"
+      - "Waiting 30 seconds before post-deployment snapshot..."
+
+- name: Wait for potential deployment to complete
+  ansible.builtin.pause:
+    seconds: 30
+  when: capture_post_snapshot | default(true) | bool
+
+# POST-DEPLOYMENT SNAPSHOT
+- name: Capture post-deployment timestamp
+  ansible.builtin.set_fact:
+    post_deployment_timestamp: "{{ lookup('ansible.builtin.pipe', 'date +\"%Y-%m-%d %H:%M:%S\"') }}"
+
+- name: Get deployable devices (POST-deployment snapshot)
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/deployabledevices?expanded=true"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: post_deployable_devices
+
+- name: Get deployment job histories (POST-deployment)
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/jobhistories?offset=0&limit=25"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: post_job_histories
+
+# EXTRACT DEPLOYMENT DIFFERENCES
+- name: Extract deployment differences (Added/Removed/Edited)
+  ansible.builtin.set_fact:
+    deployment_differences: |
+      {% set differences = [] %}
+      {% if pre_deployable_devices.status == 200 and post_deployable_devices.status == 200 %}
+        {% set pre_devices = pre_deployable_devices.json.get('items', []) %}
+        {% set post_devices = post_deployable_devices.json.get('items', []) %}
+        
+        {% for post_device in post_devices %}
+          {% set device_name = post_device.name %}
+          {% set pre_device = None %}
+          {% for pd in pre_devices %}
+            {% if pd.device.id == post_device.device.id %}
+              {% set pre_device = pd %}
+            {% endif %}
+          {% endfor %}
+          
+          {% if pre_device %}
+            {% for post_policy in post_device.policyStatusList %}
+              {% set found_in_pre = false %}
+              
+              {% for pre_policy in pre_device.policyStatusList %}
+                {% if pre_policy.policy.id == post_policy.policy.id %}
+                  {% set found_in_pre = true %}
+                  {% if pre_policy.versionTimeStamp != post_policy.versionTimeStamp %}
+                    {% set _ = differences.append({
+                      'action': 'EDITED',
+                      'device': device_name,
+                      'object': post_policy.policy.get('name', 'Unknown'),
+                      'type': post_policy.policy.get('type', 'Unknown'),
+                      'details': 'Version changed'
+                    }) %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              
+              {% if not found_in_pre %}
+                {% set _ = differences.append({
+                  'action': 'ADDED',
+                  'device': device_name,
+                  'object': post_policy.policy.get('name', 'Unknown'),
+                  'type': post_policy.policy.get('type', 'Unknown'),
+                  'details': 'New policy/object added'
+                }) %}
+              {% endif %}
+            {% endfor %}
+            
+            {% for pre_policy in pre_device.policyStatusList %}
+              {% set found_in_post = false %}
+              {% for post_policy in post_device.policyStatusList %}
+                {% if post_policy.policy.id == pre_policy.policy.id %}
+                  {% set found_in_post = true %}
+                {% endif %}
+              {% endfor %}
+              
+              {% if not found_in_post %}
+                {% set _ = differences.append({
+                  'action': 'REMOVED',
+                  'device': device_name,
+                  'object': pre_policy.policy.get('name', 'Unknown'),
+                  'type': pre_policy.policy.get('type', 'Unknown'),
+                  'details': 'Policy/object removed'
+                }) %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {{ differences | to_json }}
+
+- name: Store post-deployment data
+  ansible.builtin.set_fact:
+    post_deployment_data:
+      timestamp: "{{ post_deployment_timestamp }}"
+      devices: "{{ post_deployable_devices.json.get('items', []) if post_deployable_devices.status == 200 else [] }}"
+      total_devices: "{{ post_deployable_devices.json.get('items', []) | length if post_deployable_devices.status == 200 else 0 }}"
+      devices_with_changes: "{{ post_deployable_devices.json.get('items', []) | selectattr('upToDate', 'equalto', false) | list | length if post_deployable_devices.status == 200 else 0 }}"
+      job_count: "{{ post_job_histories.json.get('items', []) | length if post_job_histories.status == 200 else 0 }}"
+      last_job: "{{ post_job_histories.json.get('items', [])[0] if post_job_histories.status == 200 and post_job_histories.json.get('items', []) else {} }}"
+
+# ANALYZE DEPLOYMENT CHANGES - Fixed with proper type conversion
+- name: Analyze deployment changes
+  ansible.builtin.set_fact:
+    deployment_analysis:
+      deployment_occurred: "{{ (post_deployment_data.job_count | int) > (pre_deployment_data.job_count | int) }}"
+      new_deployments: "{{ (post_deployment_data.job_count | int) - (pre_deployment_data.job_count | int) }}"
+      changes_deployed: "{{ (pre_deployment_data.devices_with_changes | int) - (post_deployment_data.devices_with_changes | int) }}"
+      remaining_changes: "{{ post_deployment_data.devices_with_changes | int }}"
+
+# GENERATE SIMPLIFIED DEPLOYMENT CHANGES CSV
+- name: Generate simplified deployment changes CSV
+  ansible.builtin.set_fact:
+    deployment_changes_csv: |
+      DEPLOYMENT CHANGES REPORT - {{ report_date }} {{ report_time }}
+      ================================================================================
+      
+      Action,Device,Policy/Object,Type,Details
+      {% set changes = deployment_differences | from_json %}
+      {% if changes | length > 0 %}
+      {% for change in changes | sort(attribute='action') %}
+      "{{ change.action }}","{{ change.device }}","{{ change.object }}","{{ change.type }}","{{ change.details }}"
+      {% endfor %}
+      {% else %}
+      "NO CHANGES","","","",""
+      {% endif %}
+      
+      ================================================================================
+      Summary: {{ changes | length }} total changes detected
+      - Added: {{ changes | selectattr('action', 'equalto', 'ADDED') | list | length }}
+      - Edited: {{ changes | selectattr('action', 'equalto', 'EDITED') | list | length }}
+      - Removed: {{ changes | selectattr('action', 'equalto', 'REMOVED') | list | length }}
+
+# GENERATE DEPLOYMENT SUMMARY CSV - Fixed with proper type conversion
+- name: Generate deployment summary CSV
+  ansible.builtin.set_fact:
+    deployment_summary_csv: |
+      FMC DEPLOYMENT SUMMARY REPORT
+      ================================================================================
+      Report ID: {{ execution_id }}
+      Generated: {{ report_date }} {{ report_time }}
+      FMC Host: {{ ansible_host }}
+      ================================================================================
+      
+      DEPLOYMENT STATUS
+      ----------------
+      Metric,Pre-Deployment,Post-Deployment,Change
+      "Timestamp","{{ pre_deployment_data.timestamp }}","{{ post_deployment_data.timestamp }}","-"
+      "Total Devices","{{ pre_deployment_data.total_devices }}","{{ post_deployment_data.total_devices }}","{{ (post_deployment_data.total_devices | int) - (pre_deployment_data.total_devices | int) }}"
+      "Devices with Changes","{{ pre_deployment_data.devices_with_changes }}","{{ post_deployment_data.devices_with_changes }}","{{ (post_deployment_data.devices_with_changes | int) - (pre_deployment_data.devices_with_changes | int) }}"
+      "Job Count","{{ pre_deployment_data.job_count }}","{{ post_deployment_data.job_count }}","{{ (post_deployment_data.job_count | int) - (pre_deployment_data.job_count | int) }}"
+      
+      DEPLOYMENT ANALYSIS
+      -------------------
+      "Deployment Detected","{{ 'Yes' if deployment_analysis.deployment_occurred else 'No' }}"
+      "New Deployments","{{ deployment_analysis.new_deployments }}"
+      "Changes Deployed","{{ deployment_analysis.changes_deployed }}"
+      "Remaining Changes","{{ deployment_analysis.remaining_changes }}"
+
+# GENERATE JSON SUMMARY - Fixed with proper JSON structure
+- name: Generate comprehensive JSON summary
+  ansible.builtin.set_fact:
+    deployment_summary_json: |
+      {
+        "execution_id": "{{ execution_id }}",
+        "report_date": "{{ report_date }}",
+        "report_time": "{{ report_time }}",
+        "fmc_host": "{{ ansible_host }}",
+        "pre_deployment": {
+          "timestamp": "{{ pre_deployment_data.timestamp }}",
+          "total_devices": {{ pre_deployment_data.total_devices | int }},
+          "devices_with_changes": {{ pre_deployment_data.devices_with_changes | int }},
+          "job_count": {{ pre_deployment_data.job_count | int }}
+        },
+        "post_deployment": {
+          "timestamp": "{{ post_deployment_data.timestamp }}",
+          "total_devices": {{ post_deployment_data.total_devices | int }},
+          "devices_with_changes": {{ post_deployment_data.devices_with_changes | int }},
+          "job_count": {{ post_deployment_data.job_count | int }}
+        },
+        "deployment_changes": {{ deployment_differences }},
+        "analysis": {
+          "deployment_occurred": {{ deployment_analysis.deployment_occurred | lower }},
+          "new_deployments": {{ deployment_analysis.new_deployments }},
+          "changes_deployed": {{ deployment_analysis.changes_deployed }},
+          "remaining_changes": {{ deployment_analysis.remaining_changes }}
+        }
+      }
+
+# Store results
+- name: Store execution results
+  ansible.builtin.set_fact:
+    execution_status: "completed"
+    total_devices: "{{ post_deployment_data.total_devices }}"
+    devices_with_changes: "{{ post_deployment_data.devices_with_changes }}"
+    deployment_changes_count: "{{ deployment_differences | from_json | length }}"
+    report_data:
+      changes_csv: "{{ deployment_changes_csv }}"
+      summary_csv: "{{ deployment_summary_csv }}"
+      summary_json: "{{ deployment_summary_json }}"

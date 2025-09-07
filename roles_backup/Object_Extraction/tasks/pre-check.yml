@@ -1,0 +1,43 @@
+---
+- name: Display extraction scope
+  ansible.builtin.debug:
+    msg: "Starting FMC Object/Object-Group Extraction"
+
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that:
+      - ansible_host is defined
+      - ansible_user is defined
+      - ansible_password is defined
+    fail_msg: "Missing required FMC connection parameters"
+    success_msg: "Input validation passed"
+
+- name: Store execution timestamp
+  ansible.builtin.set_fact:
+    execution_timestamp: "{{ lookup('ansible.builtin.pipe', 'date +%Y%m%d_%H%M%S') }}"
+
+- name: Test FMC connectivity
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  register: connectivity_test
+  ignore_errors: true
+
+- name: Verify connectivity
+  ansible.builtin.assert:
+    that:
+      - connectivity_test is not failed
+    fail_msg: "Cannot connect to FMC at {{ ansible_host }}"
+    success_msg: "FMC connectivity verified"
+
+- name: Display pre-check summary
+  ansible.builtin.debug:
+    msg:
+      - "Pre-check completed successfully"
+      - "FMC Host: {{ ansible_host }}"
+      - "Timestamp: {{ execution_timestamp }}"

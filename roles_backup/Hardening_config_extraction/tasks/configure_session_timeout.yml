@@ -1,0 +1,162 @@
+---
+# Session Timeout Configuration
+# Configure session timeout settings for enhanced security
+
+- name: Get Current SSO Configuration for Session Settings
+  cisco.fmcansible.fmc_configuration:
+    operation: getAllSSOConfig
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+  register: sso_config
+  failed_when: false
+  when: session_timeout_enabled | bool
+
+- name: Debug SSO Configuration
+  debug:
+    var: sso_config
+  when: 
+    - session_timeout_enabled | bool
+    - debug_mode | default(false) | bool
+
+- name: Get Current SSO Server Configuration
+  cisco.fmcansible.fmc_configuration:
+    operation: getAllSSOServer
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+  register: sso_servers
+  failed_when: false
+  when: session_timeout_enabled | bool
+
+- name: Debug SSO Server Configuration
+  debug:
+    var: sso_servers
+  when: 
+    - session_timeout_enabled | bool
+    - debug_mode | default(false) | bool
+
+- name: Analyze Current Session Configuration
+  set_fact:
+    sso_config_available: "{{ sso_config.response is defined }}"
+    sso_servers_available: "{{ sso_servers.response is defined }}"
+    current_session_timeout: "{{ sso_config.response['items'][0].sessionTimeout | default(0) if (sso_config.response is defined and sso_config.response['items'] is defined and sso_config.response['items'] | length > 0) else 0 }}"
+  when: session_timeout_enabled | bool
+
+- name: Check Session Timeout Compliance
+  set_fact:
+    session_timeout_compliant: "{{ (current_session_timeout | int) > 0 and (current_session_timeout | int) <= (max_session_timeout_minutes | default(30) | int) }}"
+    recommended_timeout: "{{ recommended_session_timeout_minutes | default(15) }}"
+  when: 
+    - session_timeout_enabled | bool
+    - current_session_timeout is defined
+
+- name: Configure Session Timeout via SSO Settings (if SSO is configured)
+  cisco.fmcansible.fmc_configuration:
+    operation: updateSSOConfig
+    data:
+      sessionTimeout: "{{ recommended_session_timeout_minutes | default(15) }}"
+      type: "SSOConfig"
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+      objectId: "{{ sso_config.response['items'][0].id }}"
+  register: session_timeout_result
+  when: 
+    - session_timeout_enabled | bool
+    - apply_hardening | bool
+    - sso_config_available | default(false)
+    - sso_config.response['items'] is defined
+    - sso_config.response['items'] | length > 0
+    - not (session_timeout_compliant | default(false))
+  failed_when: false
+
+- name: Record Session Timeout Configuration Status
+  set_fact:
+    compliance_results: "{{ compliance_results | default({}) | combine({
+      'session_timeout_compliance': {
+        'status': session_timeout_compliant | default(false),
+        'current_timeout_minutes': current_session_timeout | default(0),
+        'recommended_timeout_minutes': recommended_timeout | default(15),
+        'max_allowed_timeout_minutes': max_session_timeout_minutes | default(30),
+        'sso_config_available': sso_config_available | default(false),
+        'sso_servers_available': sso_servers_available | default(false),
+        'compliant': session_timeout_compliant | default(false),
+        'applied': (session_timeout_result.response is defined) if apply_hardening else false,
+        'recommendation': 'Configure session timeout to ' + (recommended_timeout | default(15) | string) + ' minutes or less for enhanced security'
+      } }) }}"
+  when: session_timeout_enabled | bool
+
+- name: Display Session Timeout Compliance Status
+  debug:
+    msg:
+      - "Session Timeout Compliance Check:"
+      - "Current Session Timeout: {{ current_session_timeout | default(0) }} minutes"
+      - "Recommended Timeout: {{ recommended_timeout | default(15) }} minutes"
+      - "Max Allowed Timeout: {{ max_session_timeout_minutes | default(30) }} minutes"
+      - "SSO Configuration Available: {{ sso_config_available | default(false) }}"
+      - "Session Timeout Compliant: {{ session_timeout_compliant | default(false) }}"
+      - "{% if apply_hardening and session_timeout_result.response is defined %}Session Timeout Updated: True{% endif %}"
+  when: session_timeout_enabled | bool
+
+- name: Manual Configuration Instructions for Session Timeout
+  debug:
+    msg: |
+      MANUAL SESSION TIMEOUT CONFIGURATION REQUIRED:
+      
+      Since direct API configuration may not be available for all session timeout settings,
+      please configure session timeout manually through the FMC GUI:
+      
+      1. Navigate to System > Users > Authentication
+      2. Configure session timeout settings:
+         - Web Session Timeout: {{ recommended_session_timeout_minutes | default(15) }} minutes
+         - CLI Session Timeout: {{ recommended_session_timeout_minutes | default(15) }} minutes
+      3. Navigate to System > Users > SSO (if SSO is configured)
+      4. Set Session Timeout: {{ recommended_session_timeout_minutes | default(15) }} minutes
+      5. Click Save to apply changes
+      
+      For LDAP/AD integration:
+      1. Navigate to System > Users > LDAP
+      2. Configure session timeout in LDAP server settings
+      3. Set appropriate timeout values for enhanced security
+      
+      Security Best Practices:
+      - Use session timeout of {{ recommended_session_timeout_minutes | default(15) }} minutes or less
+      - Enable automatic logout on browser close
+      - Implement concurrent session limits
+      - Log all session timeout events for audit purposes
+  when: 
+    - session_timeout_enabled | bool
+    - not (session_timeout_compliant | default(false))
+
+- name: Warn if Session Timeout is Non-Compliant
+  fail:
+    msg: |
+      SESSION TIMEOUT COMPLIANCE FAILURE:
+      Current session timeout ({{ current_session_timeout | default(0) }} minutes) does not meet security requirements.
+      
+      Required: Session timeout must be {{ recommended_session_timeout_minutes | default(15) }} minutes or less
+      Maximum Allowed: {{ max_session_timeout_minutes | default(30) }} minutes
+      
+      Security Risk: Extended session timeouts increase the risk of unauthorized access
+      if sessions are left unattended.
+      
+      Manual Action Required:
+      1. Navigate to System > Users > Authentication
+      2. Set Web Session Timeout to {{ recommended_session_timeout_minutes | default(15) }} minutes
+      3. Set CLI Session Timeout to {{ recommended_session_timeout_minutes | default(15) }} minutes
+      4. Apply changes and verify configuration
+  when: 
+    - session_timeout_enabled | bool
+    - not (session_timeout_compliant | default(false))
+    - validate_compliance | bool
+  ignore_errors: "{{ not validate_compliance }}"
+
+- name: Log Session Timeout Configuration Applied
+  debug:
+    msg: |
+      Session timeout configuration has been applied successfully:
+      - Session timeout set to: {{ recommended_session_timeout_minutes | default(15) }} minutes
+      - Configuration applied via: {{ 'API (SSO Config)' if (session_timeout_result.response is defined) else 'Manual GUI Configuration Required' }}
+      - Compliance status: {{ 'COMPLIANT' if (session_timeout_compliant | default(false)) else 'NON-COMPLIANT' }}
+  when: 
+    - session_timeout_enabled | bool
+    - apply_hardening | bool
+

@@ -1,0 +1,4 @@
+---
+- name: Rollback note
+  ansible.builtin.debug:
+    msg: "This is a read-only extraction operation - no rollback required"

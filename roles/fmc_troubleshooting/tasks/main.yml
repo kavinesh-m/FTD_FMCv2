@@ -1,0 +1,5 @@
+---
+- name: Run Pre-Checks
+  ansible.builtin.include_tasks: precheck.yml
+- name: Run Main Tasks
+  ansible.builtin.include_tasks: tasks.yml

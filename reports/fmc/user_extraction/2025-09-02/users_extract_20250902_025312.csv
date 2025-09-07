@@ -1,0 +1,5 @@
+UserType,Username,RealName,Email,Role/Privilege,AuthMethod,AccessType,Source
+FMC,admin,admin,N/A,"Administrator",Internal,Web UI,FMC API
+FMC,ansible,ansible,N/A,"Administrator",Internal,Web UI,FMC API
+FTD Local,admin,N/A,N/A,Privilege 100,Local,SSH/Console,FTD CLI - show user
+FTD Local,qemu,N/A,N/A,Privilege 996,Remote,SSH/Console,FTD CLI - show user

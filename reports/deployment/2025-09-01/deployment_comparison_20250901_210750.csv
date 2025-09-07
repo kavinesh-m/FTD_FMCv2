@@ -1,0 +1,9 @@
+Report Type,Timestamp,Total Devices,Devices with Changes,Total Jobs,Status
+"Pre-Deployment","2025-09-01 21:08:00",1,1,25,"Snapshot"
+"Post-Deployment","2025-09-01 21:08:38",1,1,25,"Snapshot"
+
+Deployment Analysis
+"Deployment Occurred","No"
+"New Deployments","0"
+"Changes Deployed","0"
+"Remaining Changes","1"

@@ -1,0 +1,8 @@
+---
+- name: Packet Tracer
+  when: use_case == 'troubleshoot_packet_tracer'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Packet_tracer/tasks/main.yml'
+
+- name: TCP Dump
+  when: use_case == 'troubleshoot_tcpdump'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Tcpdump_capture/tasks/main.yml'

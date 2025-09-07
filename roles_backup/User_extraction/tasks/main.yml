@@ -1,0 +1,344 @@
+---
+# Simplified main.yml - Focus on FMC users and FTD local SSH users only
+
+# FMC API Authentication
+- name: Get FMC auth token
+  when: target_system in ['fmc', 'ftd', 'both']
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  register: auth_response
+
+- name: Extract auth token
+  when: target_system in ['fmc', 'ftd', 'both']
+  ansible.builtin.set_fact:
+    auth_token: "{{ auth_response.x_auth_access_token }}"
+    refresh_token: "{{ auth_response.x_auth_refresh_token }}"
+    domain_uuid: "{{ auth_response.domain_uuid | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+# ====================
+# GET DEVICE INFO EARLY (before token expires)
+# ====================
+
+- name: Get device UUID
+  when:
+    - target_system in ['ftd', 'both']
+    - device_name is defined
+    - device_name | length > 0
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords?filter=name:{{ device_name }}"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: device_response
+  ignore_errors: yes
+
+- name: Set device UUID and get device details immediately
+  when:
+    - device_response is defined
+    - device_response.status == 200
+    - device_response.json.get('items', []) | length > 0
+  block:
+    - name: Set device UUID
+      ansible.builtin.set_fact:
+        device_uuid: "{{ device_response['json']['items'][0]['id'] }}"
+
+    - name: Get device configuration immediately
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+        status_code: [200, 404]
+      register: device_config
+      ignore_errors: yes
+
+    - name: Store FTD host IP immediately
+      when:
+        - device_config is defined
+        - device_config.status == 200
+        - device_config.json.hostName is defined
+      ansible.builtin.set_fact:
+        ftd_device_ip: "{{ device_config.json.hostName }}"
+
+# ====================
+# FMC USER EXTRACTION
+# ====================
+
+- name: Get FMC local users
+  when: target_system in ['fmc', 'both']
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/users/users"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: fmc_users
+  ignore_errors: yes
+
+- name: Get detailed FMC user information
+  when: 
+    - target_system in ['fmc', 'both']
+    - fmc_users is defined
+    - fmc_users.status == 200
+    - fmc_users.json.get('items', []) | length > 0
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/users/users/{{ item.id }}"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  loop: "{{ fmc_users.json.get('items', []) }}"
+  register: user_details
+  ignore_errors: yes
+
+- name: Get FMC user roles
+  when: target_system in ['fmc', 'both']
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/users/authroles"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: fmc_roles
+  ignore_errors: yes
+
+- name: Get authentication realms
+  when: target_system in ['fmc', 'both']
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/object/realms"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: fmc_realms
+  ignore_errors: yes
+
+# Process FMC users
+- name: Process FMC user details
+  when: user_details is defined and user_details.results is defined
+  ansible.builtin.set_fact:
+    processed_fmc_users: >-
+      [
+      {% for item in user_details.results if item.json is defined %}
+        {
+          "username": "{{ item.json.username | default('N/A') }}",
+          "realName": "{{ item.json.realname | default('N/A') }}",
+          "email": "{{ item.json.email | default('N/A') }}",
+          "roles": "{% if item.json.roles is defined and item.json.roles | length > 0 %}{{ item.json.roles | map(attribute='name') | list | join(', ') }}{% else %}No roles assigned{% endif %}",
+          "authMethod": "{{ item.json.authenticationMethod | default('internal') | capitalize }}",
+          "passwordLifetime": "{{ item.json.passwordLifetime | default('N/A') }}",
+          "isEnabled": {{ item.json.isUserEnabled | default(false) | lower }},
+          "id": "{{ item.json.id | default('N/A') }}"
+        }{% if not loop.last %},{% endif %}
+      {% endfor %}
+      ]
+
+# ====================
+# FTD LOCAL USER EXTRACTION VIA SSH - IMPROVED VERSION
+# ====================
+
+- name: Extract FTD local users via SSH with improved error handling
+  when: 
+    - target_system in ['ftd', 'both']
+    - ftd_ssh_enabled | default(true) | bool
+  block:
+    - name: Set FTD connection host
+      ansible.builtin.set_fact:
+        ftd_ssh_host: "{{ ftd_device_ip | default(ftd_host) | default('10.12.201.213') }}"
+        ftd_ssh_username: "{{ ftd_ssh_username | default('admin') }}"
+        # ftd_ssh_password: "{{ ftd_ssh_password | default('') }}"
+
+    - name: Display FTD SSH connection attempt
+      ansible.builtin.debug:
+        msg: "Attempting SSH connection to FTD at {{ ftd_ssh_host }}"
+
+    - name: Test SSH connectivity first
+      ansible.builtin.wait_for:
+        host: "{{ ftd_ssh_host }}"
+        port: 22
+        timeout: 10
+        state: started
+      delegate_to: localhost
+      register: ssh_test
+      ignore_errors: yes
+
+    - name: Get FTD users via show user command with retry
+      ansible.builtin.shell: |
+        sshpass -p "{{ ftd_ssh_password | default('ZAQ!23edcx') }}" ssh -o StrictHostKeyChecking=no \
+        -o ConnectTimeout=20 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
+        {{ ftd_ssh_username | default('admin') }}@{{ ftd_ssh_host }} "show user"
+      delegate_to: localhost
+      register: ftd_user_list
+      retries: 2
+      delay: 5
+      until: ftd_user_list.rc == 0
+      ignore_errors: yes
+      when: ssh_test is succeeded
+
+    # Debug output
+    - name: Debug SSH output
+      when: ftd_user_list is defined and not ftd_user_list.failed | default(false)
+      ansible.builtin.debug:
+        msg: "SSH Output received: {{ ftd_user_list.stdout_lines | default([]) }}"
+
+    # Alternative command if 'show user' fails
+    - name: Try show running-config username
+      ansible.builtin.shell: |
+        sshpass -p "{{ ftd_ssh_password }}" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 \
+        {{ ftd_ssh_username }}@{{ ftd_ssh_host }} "show running-config username"
+      delegate_to: localhost
+      register: ftd_user_config
+      ignore_errors: yes
+      when: 
+        - ftd_user_list.failed | default(false)
+        - ssh_test is succeeded
+
+    # IMPROVED PARSING - Parse FTD users from 'show user' output with better header detection
+    - name: Parse FTD users from show user command (improved)
+      when: 
+        - ftd_user_list is defined
+        - not ftd_user_list.failed | default(false)
+        - ftd_user_list.stdout is defined
+        - ftd_user_list.stdout | length > 0
+      ansible.builtin.set_fact:
+        processed_ftd_users: >-
+          [
+          {% set lines = ftd_user_list.stdout.split('\n') %}
+          {% set user_list = [] %}
+          {% for line in lines %}
+            {% set cleaned_line = line.strip() %}
+            {# Skip header lines, empty lines, and warnings #}
+            {% if cleaned_line and 
+                  not cleaned_line.startswith('Login') and 
+                  not cleaned_line.startswith('Username') and
+                  not cleaned_line.startswith('---') and
+                  not cleaned_line.startswith('Warning:') and
+                  not cleaned_line.startswith('show user') and
+                  not 'UID' in cleaned_line %}
+              {% set parts = cleaned_line.split() %}
+              {# Ensure we have at least 3 fields and the second field is numeric (UID) #}
+              {% if parts | length >= 3 %}
+                {% set uid_str = parts[1] %}
+                {# Check if UID is numeric #}
+                {% if uid_str | regex_search('^[0-9]+$') %}
+                  {% set _ = user_list.append({
+                    "username": parts[0],
+                    "uid": parts[1],
+                    "authType": parts[2] if parts|length > 2 else 'Unknown',
+                    "accessLevel": parts[3] if parts|length > 3 else 'Config',
+                    "enabled": parts[4] if parts|length > 4 else 'Enabled',
+                    "privilege": parts[1],
+                    "passwordType": parts[2] if parts|length > 2 else 'Local',
+                    "accessType": "SSH/Console",
+                    "source": "FTD CLI - show user"
+                  }) %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ user_list | to_json }}
+          ]
+
+    # Alternative: Parse from running-config if show user parsing failed or returned empty
+    - name: Parse FTD users from running-config
+      when: 
+        - (processed_ftd_users is not defined or processed_ftd_users | length == 0)
+        - ftd_user_config is defined
+        - not ftd_user_config.failed | default(false)
+        - ftd_user_config.stdout is defined
+      ansible.builtin.set_fact:
+        processed_ftd_users: >-
+          [
+          {% set lines = ftd_user_config.stdout.split('\n') %}
+          {% for line in lines %}
+          {% if 'username' in line and 'privilege' in line %}
+            {% set parts = line.split() %}
+            {% if parts | length >= 4 %}
+            {
+              "username": "{{ parts[1] }}",
+              "privilege": "{{ parts[3] if 'privilege' in parts[2] else '15' }}",
+              "passwordType": "encrypted",
+              "accessType": "SSH/Console",
+              "source": "FTD CLI - running-config"
+            }{% if not loop.last %},{% endif %}
+            {% endif %}
+          {% endif %}
+          {% endfor %}
+          ]
+
+# Method 2: Try API endpoint as fallback
+- name: Try FMC API for FTD local users
+  when:
+    - target_system in ['ftd', 'both']
+    - device_uuid is defined
+    - processed_ftd_users is not defined or processed_ftd_users | length == 0
+  uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/localusers"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ auth_token }}"
+    validate_certs: no
+    status_code: [200, 404]
+  register: ftd_local_users_api
+  ignore_errors: yes
+
+# Set default empty arrays if not populated
+- name: Initialize empty user arrays
+  ansible.builtin.set_fact:
+    processed_fmc_users: "{{ processed_fmc_users | default([]) }}"
+    processed_ftd_users: "{{ processed_ftd_users | default([]) }}"
+
+# ====================
+# GENERATE CSV REPORT
+# ====================
+
+- name: Generate comprehensive users CSV
+  ansible.builtin.copy:
+    content: |
+      UserType,Username,RealName,Email,Role/Privilege,AuthMethod,AccessType,Source
+      {% for user in processed_fmc_users %}
+      FMC,{{ user.username }},{{ user.realName }},{{ user.email }},"{{ user.roles }}",{{ user.authMethod }},Web UI,FMC API
+      {% endfor %}
+      {% if processed_ftd_users[0] is defined %}
+      {% for user in processed_ftd_users[0] %}
+      FTD Local,{{ user.username }},N/A,N/A,Privilege {{ user.privilege }},{{ user.passwordType | default('Local') }},{{ user.accessType }},{{ user.source | default('Unknown') }}
+      {% endfor %}
+      {% else %}
+      {% for user in processed_ftd_users %}
+      FTD Local,{{ user.username }},N/A,N/A,Privilege {{ user.privilege }},{{ user.passwordType | default('Local') }},{{ user.accessType }},{{ user.source | default('Unknown') }}
+      {% endfor %}
+      {% endif %}
+    dest: "/tmp/users_extract_{{ execution_id }}.csv"
+  delegate_to: localhost
+  ignore_errors: yes
+
+# ====================
+# SET EXTRACTION RESULTS
+# ====================
+
+- name: Set extraction results for reporting
+  ansible.builtin.set_fact:
+    extraction_results:
+      fmc_users: "{{ processed_fmc_users }}"
+      ftd_local_users: "{{ processed_ftd_users }}"
+      available_roles: "{{ fmc_roles.json.get('items', []) if fmc_roles is defined and fmc_roles.status == 200 else [] }}"
+      auth_realms: "{{ fmc_realms.json.get('items', []) if fmc_realms is defined and fmc_realms.status == 200 else [] }}"
+      device_info: "{{ device_config.json if device_config is defined and device_config.status == 200 and device_config.json is defined else {} }}"
+      ftd_ssh_attempted: "{{ ftd_ssh_host | default('Not attempted') }}"
+      summary:  # <- Remove the duplicate "summary:" line
+        fmc_users_count: "{{ processed_fmc_users | length }}"
+        ftd_users_count: "{{ processed_ftd_users[0] | length if processed_ftd_users[0] is defined else processed_ftd_users | length }}"
+        total_users: "{{ (processed_fmc_users | length) + (processed_ftd_users[0] | length if processed_ftd_users[0] is defined else processed_ftd_users | length) }}"

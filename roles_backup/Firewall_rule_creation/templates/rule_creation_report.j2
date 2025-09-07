@@ -1,0 +1,26 @@
+=========================================
+FMC RULE / OBJECT CREATION REPORT
+=========================================
+Report ID: {{ execution_id }}
+Generated: {{ report_date }} {{ report_time }}
+Policy:    {{ policy_name }}
+Rule:      {{ rule_name }}
+Action:    {{ rpt_action }}
+=========================================
+
+SOURCE OBJECTS:
+  {{ rpt_src | join(', ') | default('(none)') }}
+
+DESTINATION OBJECTS:
+  {{ rpt_dst | join(', ') | default('(none)') }}
+
+SERVICE OBJECTS:
+  {{ rpt_svc | join(', ') | default('(none)') }}
+
+{{ ('\nNEW OBJECT CREATED: ' ~ rpt_created_object) if (rpt_created_object | length > 0) else '' }}
+
+Artifacts:
+- rule_payload_{{ execution_id }}.json
+
+End of report
+=========================================

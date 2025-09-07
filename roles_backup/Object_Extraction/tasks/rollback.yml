@@ -1,0 +1,13 @@
+---
+- name: Rollback note
+  ansible.builtin.debug:
+    msg: "This is a read-only extraction operation - no rollback required"
+
+- name: Log failure
+  ansible.builtin.copy:
+    content: |
+      Extraction failed at: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+      Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+    dest: "/tmp/object_extraction_failure_{{ execution_id }}.log"
+  delegate_to: localhost
+  when: ansible_failed_result is defined

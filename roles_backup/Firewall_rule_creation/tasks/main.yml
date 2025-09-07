@@ -1,0 +1,371 @@
+---
+- name: Gather facts for timestamp
+  ansible.builtin.setup:
+    gather_subset: 
+      - date_time
+  when: deploy | default(false)
+
+# Map deploy_now to deploy
+- name: Map deploy_now to deploy
+  ansible.builtin.set_fact:
+    deploy: "{{ deploy_now | default('no') | lower == 'yes' }}"
+  when: deploy_now is defined
+  
+# =============== Normalize survey lists (CSV → list) ====================
+- name: Normalize src/dst/services (CSV → list)
+  ansible.builtin.set_fact:
+    src_list: "{{ (src | string).split(',') | map('trim') | reject('equalto','') | list }}"
+    dst_list: "{{ (dst | string).split(',') | map('trim') | reject('equalto','') | list }}"
+    svc_list: "{{ (services | string).split(',') | map('trim') | reject('equalto','') | list }}"
+
+# ================= Optional single-object creation ======================
+- name: Normalize object_type
+  when: object_type is defined and (object_type | string) | length > 0
+  ansible.builtin.set_fact:
+    object_type_norm: "{{ object_type | lower }}"
+
+- name: Validate object_type (if provided)
+  when: object_type_norm is defined
+  ansible.builtin.assert:
+    that: object_type_norm in ['host','network','port','url']
+    fail_msg: "object_type must be one of: host, network, port, url."
+
+# Lookup existing objects using REST API (without filter)
+- name: Lookup all existing hosts
+  when: object_type_norm is defined and object_type_norm == 'host' and (object_name | default('')) | length > 0
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/hosts?expanded=true&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: _obj_host
+  ignore_errors: yes
+
+- name: Lookup all existing networks
+  when: object_type_norm is defined and object_type_norm == 'network' and (object_name | default('')) | length > 0
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/networks?expanded=true&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: _obj_net
+  ignore_errors: yes
+
+- name: Lookup all existing ports
+  when: object_type_norm is defined and object_type_norm == 'port' and (object_name | default('')) | length > 0
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/protocolportobjects?expanded=true&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: _obj_port
+  ignore_errors: yes
+
+- name: Initialize pre_existing_obj
+  when: object_type_norm is defined and (object_name | default('')) | length > 0
+  ansible.builtin.set_fact:
+    pre_existing_obj: {}
+
+- name: Search for existing host object
+  ansible.builtin.set_fact:
+    pre_existing_obj: "{{ item }}"
+  loop: "{{ _obj_host.json['items'] | default([]) }}"
+  when: 
+    - object_type_norm == 'host'
+    - _obj_host.json is defined
+    - item.name == object_name
+
+- name: Search for existing network object  
+  ansible.builtin.set_fact:
+    pre_existing_obj: "{{ item }}"
+  loop: "{{ _obj_net.json['items'] | default([]) }}"
+  when:
+    - object_type_norm == 'network'
+    - _obj_net.json is defined
+    - item.name == object_name
+
+- name: Search for existing port object
+  ansible.builtin.set_fact:
+    pre_existing_obj: "{{ item }}"
+  loop: "{{ _obj_port.json['items'] | default([]) }}"
+  when:
+    - object_type_norm == 'port'
+    - _obj_port.json is defined
+    - item.name == object_name
+
+- name: Set object creation needed
+  when: object_type_norm is defined and (object_name | default('')) | length > 0
+  ansible.builtin.set_fact:
+    need_create_object: "{{ (pre_existing_obj | length == 0) }}"
+
+- name: Build object payload for host
+  when:
+    - need_create_object | default(false)
+    - object_type_norm == 'host'
+  ansible.builtin.set_fact:
+    new_object_payload:
+      name: "{{ object_name }}"
+      type: "Host"
+      value: "{{ object_value }}"
+
+- name: Build object payload for network
+  when:
+    - need_create_object | default(false)
+    - object_type_norm == 'network'
+  ansible.builtin.set_fact:
+    new_object_payload:
+      name: "{{ object_name }}"
+      type: "Network"
+      value: "{{ object_value }}"
+
+- name: Build object payload for port
+  when:
+    - need_create_object | default(false)
+    - object_type_norm == 'port'
+  ansible.builtin.set_fact:
+    new_object_payload:
+      name: "{{ object_name }}"
+      type: "ProtocolPortObject"
+      protocol: "{{ object_value.split(':') | first | upper }}"
+      port: "{{ object_value.split(':') | last }}"
+
+- name: Create new object
+  when: need_create_object | default(false)
+  block:
+    - name: POST object to right endpoint
+      ansible.builtin.uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/{{ 'hosts' if object_type_norm == 'host' else 'networks' if object_type_norm == 'network' else 'protocolportobjects' }}"
+        method: POST
+        headers:
+          X-auth-access-token: "{{ fmc_access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: "{{ new_object_payload }}"
+        validate_certs: no
+        status_code: [200, 201]
+      register: new_object_result
+
+    - name: Record created object details
+      ansible.builtin.set_fact:
+        created_object: "{{ new_object_result.json | default({}) }}"
+
+# =============== Resolve references for rule (names → refs) ==================
+- name: Pull all network objects
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/{{ item }}?expanded=true&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  loop:
+    - hosts
+    - networks
+    - ranges
+    - networkgroups
+  register: _net_buckets
+
+- name: Pull port objects
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/{{ item }}?expanded=true&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  loop:
+    - protocolportobjects
+    - portobjectgroups
+  register: _svc_buckets
+
+- name: Build name→ref index (network-like)
+  ansible.builtin.set_fact:
+    net_idx: "{{ (net_idx | default({})) | combine({ item.name: {'id': item.id, 'type': item.type, 'name': item.name} }) }}"
+  loop: "{{ _net_buckets.results | json_query('[].json.items[]') }}"
+  loop_control: { label: "{{ item.name | default('unset') }}" }
+  when: item.name is defined and item.id is defined and item.type is defined
+
+- name: Build name→ref index (service-like)
+  ansible.builtin.set_fact:
+    svc_idx: "{{ (svc_idx | default({})) | combine({ item.name: {'id': item.id, 'type': item.type, 'name': item.name} }) }}"
+  loop: "{{ _svc_buckets.results | json_query('[].json.items[]') }}"
+  loop_control: { label: "{{ item.name | default('unset') }}" }
+  when: item.name is defined and item.id is defined and item.type is defined
+
+- name: Build reference lists from names
+  ansible.builtin.set_fact:
+    src_refs: []
+    dst_refs: []
+    svc_refs: []
+
+# Handle special cases first
+- name: Handle any-ipv4 for source
+  when: "'any-ipv4' in src_list"
+  ansible.builtin.set_fact:
+    src_refs: 
+      - type: "AnyIPv4"
+        name: "any-ipv4"
+        id: "any-ipv4"
+
+- name: Handle any-ipv4 for destination
+  when: "'any-ipv4' in dst_list"
+  ansible.builtin.set_fact:
+    dst_refs:
+      - type: "AnyIPv4"
+        name: "any-ipv4"
+        id: "any-ipv4"
+
+- name: Handle HTTPS service
+  ansible.builtin.set_fact:
+    svc_refs:
+      - id: "{{ svc_idx['HTTPS'].id }}"
+        type: "{{ svc_idx['HTTPS'].type }}"
+        name: "{{ svc_idx['HTTPS'].name }}"
+  when: "'HTTPS' in svc_list and svc_idx['HTTPS'] is defined"
+
+# Accumulate normal refs only if not special cases
+- name: Accumulate src refs
+  ansible.builtin.set_fact:
+    src_refs: "{{ src_refs + [ net_idx[item] ] }}"
+  loop: "{{ src_list }}"
+  when: 
+    - net_idx is defined 
+    - net_idx[item] is defined
+    - "'any-ipv4' not in src_list"
+
+- name: Accumulate dst refs
+  ansible.builtin.set_fact:
+    dst_refs: "{{ dst_refs + [ net_idx[item] ] }}"
+  loop: "{{ dst_list }}"
+  when: 
+    - net_idx is defined 
+    - net_idx[item] is defined
+    - "'any-ipv4' not in dst_list"
+
+- name: Accumulate svc refs
+  ansible.builtin.set_fact:
+    svc_refs: "{{ svc_refs + [ svc_idx[item] ] }}"
+  loop: "{{ svc_list }}"
+  when: 
+    - svc_idx is defined 
+    - svc_idx[item] is defined
+    - "'HTTPS' not in svc_list"
+
+# Validation
+- name: Fail if any referenced names are missing
+  vars:
+    have_src: "{{ src_refs | map(attribute='name') | list }}"
+    have_dst: "{{ dst_refs | map(attribute='name') | list }}"
+    have_svc: "{{ svc_refs | map(attribute='name') | list }}"
+    missing_src: "{{ src_list | difference(have_src) | difference(['any-ipv4']) }}"
+    missing_dst: "{{ dst_list | difference(have_dst) | difference(['any-ipv4']) }}"
+    missing_svc: "{{ svc_list | difference(have_svc) | difference(['HTTPS']) }}"
+  ansible.builtin.assert:
+    that:
+      - missing_src | length == 0
+      - missing_dst | length == 0
+      - missing_svc | length == 0
+    fail_msg: >-
+      One or more referenced objects not found:
+      SRC missing={{ missing_src }},
+      DST missing={{ missing_dst }},
+      SVC missing={{ missing_svc }}
+
+# ===================== Build & upsert the rule ======================
+- name: Normalize action
+  ansible.builtin.set_fact:
+    action_norm: "{{ action | upper }}"
+  when: action is defined
+
+- name: Build rule payload
+  ansible.builtin.set_fact:
+    rule_payload:
+      type: "AccessRule"
+      name: "{{ rule_name }}"
+      action: "{{ action_norm | default('ALLOW') }}"
+      enabled: true
+      sourceNetworks:
+        objects: "{{ src_refs | default([]) }}"
+      destinationNetworks:
+        objects: "{{ dst_refs | default([]) }}"
+      destinationPorts:
+        objects: "{{ svc_refs | default([]) }}"
+
+# Check for existing rule
+- name: List existing rules
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules?expanded=false&limit=1000"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: _rules_list
+
+- name: Select existing rule id
+  ansible.builtin.set_fact:
+    existing_rule_id: "{{ item.id | default('') }}"
+  loop: "{{ _rules_list.json['items'] | default([]) }}"
+  when: item.name == rule_name
+
+- name: Create rule (if missing)
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules"
+    method: POST
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    body_format: json
+    body: "{{ rule_payload }}"
+    validate_certs: false
+    status_code: [200, 201]
+  when: existing_rule_id | default('') | length == 0
+  register: create_response
+
+- name: Debug create response
+  ansible.builtin.debug:
+    var: create_response
+  when: create_response is defined
+
+- name: Update rule (if exists)
+  when: existing_rule_id is defined and existing_rule_id | length > 0
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/policy/accesspolicies/{{ policy_id }}/accessrules/{{ existing_rule_id }}"
+    method: PUT
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ rule_payload }}"
+    validate_certs: no
+    status_code: [200]
+  register: rule_update
+
+- name: Record final_rule_id
+  ansible.builtin.set_fact:
+    final_rule_id: "{{ (create_response.json.id if create_response is defined else existing_rule_id) | default('') }}"
+
+# ==================== Optional deploy to device(s) ===================
+- name: Deploy to device
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/deploymentrequests"
+    method: POST
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    body_format: json
+    body:
+      type: "DeploymentRequest"
+      version: "{{ 99999999999 | random }}"  # Random version number instead of epoch
+      forceDeploy: false
+      ignoreWarning: true
+      deviceList:
+        - "{{ device_uuid }}"
+    validate_certs: false
+    status_code: 202
+  when: deploy | default(false)
+
+# Save payload for evidence
+- name: Save rule payload JSON
+  delegate_to: localhost
+  ansible.builtin.copy:
+    content: "{{ rule_payload | to_nice_json }}"
+    dest: "/tmp/rule_payload_{{ execution_id }}.json"

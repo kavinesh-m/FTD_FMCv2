@@ -1,0 +1,374 @@
+=========================================
+FMC OBJECT/OBJECT-GROUP EXTRACTION REPORT
+=========================================
+Report ID: 20250906_142043
+Generated: 2025-09-06 at 14:20:43
+Host: fmc01 (10.12.201.212)
+=========================================
+
+EXECUTIVE SUMMARY
+-----------------
+Total Objects Extracted: 61
+
+Object Type Distribution:
+- Network Objects: 25
+- Network Groups:  3
+- Port Objects:    32
+- Port Groups:     1
+- URL Objects:     0
+- URL Groups:      0
+- Geolocations:    0
+
+=========================================
+
+DETAILED OBJECT LISTING
+-----------------------
+
+NETWORK OBJECTS (25)
+------------------------
+1. any-ipv4
+   - Type: Object
+   - UUID: cb7116e8-66a6-480b-8f9b-295191a0940a
+   - Value: 0.0.0.0/0
+               
+2. inside_network
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295214249
+   - Value: 192.168.100.0/24
+                  - Description: inside_network
+   
+3. IPv4-Benchmark-Tests
+   - Type: Object
+   - UUID: 86caab8a-9bdd-420d-858b-5690fde8ce58
+   - Value: 198.18.0.0/15
+               
+4. IPv4-Link-Local
+   - Type: Object
+   - UUID: f0ce41ae-6ee9-4e00-8762-da9370c4fee5
+   - Value: 169.254.0.0/16
+               
+5. IPv4-Multicast
+   - Type: Object
+   - UUID: 5622db1c-5cd5-4199-a4c8-d8f86dec3bd4
+   - Value: 224.0.0.0/4
+               
+6. IPv4-Private-10.0.0.0-8
+   - Type: Object
+   - UUID: 95916354-5aa1-4057-8eea-b42a5a207abc
+   - Value: 10.0.0.0/8
+               
+7. IPv4-Private-172.16.0.0-12
+   - Type: Object
+   - UUID: b7a78a7d-20c5-47b2-b02f-86b4360112ac
+   - Value: 172.16.0.0/12
+               
+8. IPv4-Private-192.168.0.0-16
+   - Type: Object
+   - UUID: 1dcefdd8-07f7-438a-9221-97d63710614e
+   - Value: 192.168.0.0/16
+               
+9. IPv6-IPv4-Mapped
+   - Type: Object
+   - UUID: 1047b91f-db3a-45b8-9c10-f48ed3f0c3d6
+   - Value: ::ffff:0.0.0.0/96
+               
+10. IPv6-Link-Local
+   - Type: Object
+   - UUID: 192c14f2-39d9-409d-81e9-357793bdf1ec
+   - Value: fe80::/10
+               
+11. IPv6-Private-Unique-Local-Addresses
+   - Type: Object
+   - UUID: 0434674f-87f8-4e17-810e-97100407858b
+   - Value: fc00::/7
+               
+12. IPv6-to-IPv4-Relay-Anycast
+   - Type: Object
+   - UUID: 04ea3f1f-f5a9-4eca-b051-487ebeb4c97f
+   - Value: 192.88.99.0/24
+               
+13. n1.3.1.0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179925261
+   - Value: 1.3.1.0/24
+                  - Description: Network object for static route 1.3.1.0/24
+   
+14. n10.0.1.0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179933269
+   - Value: 10.0.1.0/24
+                  - Description: Network object for static route 10.0.1.0/24
+   
+15. n10.11.15.0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179953703
+   - Value: 10.11.15.0/24
+                  - Description: Network object for static route 10.11.15.0/24
+   
+16. n11.12.13.0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179926226
+   - Value: 11.12.13.0/24
+                  - Description: Network object for static route 11.12.13.0/24
+   
+17. net_10_10_11_0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179924997
+   - Value: 10.10.11.0/24
+                  - Description: Network object for static route 10.10.11.0/24
+   
+18. net_10_10_9_0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179925062
+   - Value: 10.10.9.0/24
+                  - Description: Network object for static route 10.10.9.0/24
+   
+19. net_129_23_0_0_16
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179923834
+   - Value: 129.23.0.0/16
+                  - Description: Network object for static route 129.23.0.0/16
+   
+20. net_1_2_1_0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179925127
+   - Value: 1.2.1.0/24
+                  - Description: Network object for static route 1.2.1.0/24
+   
+21. net_1_3_1_0_24
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-017179925192
+   - Value: 1.3.1.0/24
+                  - Description: Network object for static route 1.3.1.0/24
+   
+22. NET_APPS
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295153903
+   - Value: 172.20.30.0/24
+               
+23. NET_USERS
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295153885
+   - Value: 172.20.10.0/24
+               
+24. outside_network
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295214267
+   - Value: 192.168.200.0/24
+               
+25. Vlan_197_inside
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295215495
+   - Value: 192.168.197.0/24
+                  - Description: Vlan 197
+   
+
+NETWORK GROUPS (3)
+-----------------------
+1. any
+   - Type: Group
+   - UUID: 69fa2a3a-4487-4e3c-816f-4098f684826e
+   - Value: any
+                           - Members: 0.0.0.0/0; ::/0
+      
+2. IPv4-Private-All-RFC1918
+   - Type: Group
+   - UUID: 15b12b14-dace-4117-b9d9-a9a7dcfa356f
+   - Value: IPv4-Private-All-RFC1918
+                                 - Members: 10.0.0.0/8; 172.16.0.0/12; 192.168.0.0/16
+      
+3. USERS_AND_WEB
+   - Type: Group
+   - UUID: 0050569B-DF62-0ed3-0000-004295171327
+   - Value: USERS_AND_WEB
+               - Members: NET_USERS; HOST_WEB_1
+      
+
+PORT OBJECTS (32)
+---------------------
+1. AOL
+   - Type: Object
+   - UUID: 1834d812-38bb-11e2-86aa-62f0c593a59a
+   - Value: 5190
+               
+2. Bittorrent
+   - Type: Object
+   - UUID: 1834e5f0-38bb-11e2-86aa-62f0c593a59a
+   - Value: 6881-6889
+               
+3. DNS_over_TCP
+   - Type: Object
+   - UUID: 1834e712-38bb-11e2-86aa-62f0c593a59a
+   - Value: 53
+               
+4. DNS_over_UDP
+   - Type: Object
+   - UUID: 1834e8ca-38bb-11e2-86aa-62f0c593a59a
+   - Value: 53
+               
+5. FTP
+   - Type: Object
+   - UUID: 1834c674-38bb-11e2-86aa-62f0c593a59a
+   - Value: 21
+               
+6. HTTP
+   - Type: Object
+   - UUID: 18312adc-38bb-11e2-86aa-62f0c593a59a
+   - Value: 80
+               
+7. HTTPS
+   - Type: Object
+   - UUID: 1834bd00-38bb-11e2-86aa-62f0c593a59a
+   - Value: 443
+               
+8. IMAP
+   - Type: Object
+   - UUID: 1834c37c-38bb-11e2-86aa-62f0c593a59a
+   - Value: 143
+               
+9. LDAP
+   - Type: Object
+   - UUID: 1834d01a-38bb-11e2-86aa-62f0c593a59a
+   - Value: 389
+               
+10. NFSD-TCP
+   - Type: Object
+   - UUID: 1834c9c6-38bb-11e2-86aa-62f0c593a59a
+   - Value: 2049
+               
+11. NFSD-UDP
+   - Type: Object
+   - UUID: 1834caac-38bb-11e2-86aa-62f0c593a59a
+   - Value: 2049
+               
+12. NTP-TCP
+   - Type: Object
+   - UUID: 1834cb92-38bb-11e2-86aa-62f0c593a59a
+   - Value: 123
+               
+13. NTP-UDP
+   - Type: Object
+   - UUID: 1834cc96-38bb-11e2-86aa-62f0c593a59a
+   - Value: 123
+               
+14. POP-2
+   - Type: Object
+   - UUID: 1834c462-38bb-11e2-86aa-62f0c593a59a
+   - Value: 109
+               
+15. POP-3
+   - Type: Object
+   - UUID: 1834c548-38bb-11e2-86aa-62f0c593a59a
+   - Value: 110
+               
+16. RADIUS
+   - Type: Object
+   - UUID: 1834ce94-38bb-11e2-86aa-62f0c593a59a
+   - Value: 1645
+               
+17. RIP
+   - Type: Object
+   - UUID: 1834d114-38bb-11e2-86aa-62f0c593a59a
+   - Value: 520
+               
+18. SIP
+   - Type: Object
+   - UUID: 1834d204-38bb-11e2-86aa-62f0c593a59a
+   - Value: 5060
+               
+19. SMTP
+   - Type: Object
+   - UUID: 1834bf44-38bb-11e2-86aa-62f0c593a59a
+   - Value: 25
+               
+20. SMTPS
+   - Type: Object
+   - UUID: 1834c07a-38bb-11e2-86aa-62f0c593a59a
+   - Value: 465
+               
+21. SNMP
+   - Type: Object
+   - UUID: 1834c264-38bb-11e2-86aa-62f0c593a59a
+   - Value: 161
+               
+22. SSH
+   - Type: Object
+   - UUID: 1834c890-38bb-11e2-86aa-62f0c593a59a
+   - Value: 22
+               
+23. SYSLOG
+   - Type: Object
+   - UUID: 1834d6e6-38bb-11e2-86aa-62f0c593a59a
+   - Value: 514
+               
+24. TCP_443
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295153921
+   - Value: 443
+               
+25. TCP_8443
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295153939
+   - Value: 8443
+               
+26. TCP_high_ports
+   - Type: Object
+   - UUID: 1834e50a-38bb-11e2-86aa-62f0c593a59a
+   - Value: 1021-65535
+               
+27. TELNET
+   - Type: Object
+   - UUID: 28e058e4-43b0-11e2-9bcd-7c2f9ed9bbee
+   - Value: 23
+               
+28. TFTP
+   - Type: Object
+   - UUID: 1834d5e2-38bb-11e2-86aa-62f0c593a59a
+   - Value: 69
+               
+29. UDP_53
+   - Type: Object
+   - UUID: 0050569B-DF62-0ed3-0000-004295153957
+   - Value: 53
+               
+30. Yahoo_Messenger_Messages
+   - Type: Object
+   - UUID: 1834da1a-38bb-11e2-86aa-62f0c593a59a
+   - Value: 5050
+               
+31. YahooMessenger_Voice_Chat_TCP
+   - Type: Object
+   - UUID: 1834db96-38bb-11e2-86aa-62f0c593a59a
+   - Value: 5000-5001
+               
+32. YahooMessenger_Voice_Chat_UDP
+   - Type: Object
+   - UUID: 1834dc86-38bb-11e2-86aa-62f0c593a59a
+   - Value: 5000-5010
+               
+
+PORT GROUPS (1)
+--------------------
+1. WEB_SVCS
+   - Type: Group
+   - UUID: 0050569B-DF62-0ed3-0000-004295171345
+   - Value: WEB_SVCS
+               - Members: TCP_443; TCP_8443
+      
+
+=========================================
+EXTRACTION STATISTICS
+=========================================
+- Execution Status: STARTED
+- Extraction Time: 2025-09-06 14:20:43
+- Total Objects Processed: 61
+
+FILES GENERATED
+---------------
+- JSON Export: objects_20250906_142043.json
+- CSV Export: objects_20250906_142043.csv
+- This Report: object_report_20250906_142043.txt
+
+=========================================
+End of Report - Generated by AAP
+=========================================

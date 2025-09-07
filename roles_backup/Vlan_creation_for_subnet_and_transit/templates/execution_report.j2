@@ -1,0 +1,80 @@
+================================================================================
+FMC VLAN SUBINTERFACE CONFIGURATION REPORT
+================================================================================
+Execution ID: {{ execution_id }}
+Generated: {{ ansible_date_time.iso8601 }}
+================================================================================
+
+OPERATION DETAILS
+-----------------
+Operation Type: {{ operation_type | upper }}
+Status: {{ execution_status | upper }}
+Device/Cluster: {{ device_name }}
+
+INTERFACE CONFIGURATION
+-----------------------
+Parent Interface: {{ parent_interface }}
+VLAN ID: {{ vlan_id }}
+Subinterface: {{ parent_interface }}.{{ vlan_id }}
+{% if operation_type == 'create' %}
+Name: VLAN_{{ vlan_id }}
+Security Zone: {{ zone_name }}
+MTU: 1500
+SGT Propagation: Enabled
+{% endif %}
+
+{% if operation_type == 'create' %}
+IPv4 CONFIGURATION
+------------------
+IP Address: {{ ipv4_addr | default(ipv4_address | ansible.utils.ipaddr('address')) }}
+Netmask: {{ ipv4_mask | default(ipv4_address | ansible.utils.ipaddr('netmask')) }}
+CIDR: {{ ipv4_address }}
+
+{% if enable_ipv6 | default(false) %}
+IPv6 CONFIGURATION
+------------------
+IPv6 Address: {{ ipv6_addr | default(ipv6_address | ansible.utils.ipaddr('address')) }}
+IPv6 Prefix: /{{ ipv6_pref | default(ipv6_address | ansible.utils.ipaddr('prefix')) }}
+Full IPv6: {{ ipv6_address }}
+{% endif %}
+{% endif %}
+
+CHANGES APPLIED
+---------------
+{% for change in changes_made %}
+- {{ change | replace('_', ' ') | title }}
+{% else %}
+- No changes made
+{% endfor %}
+
+DEPLOYMENT STATUS
+-----------------
+Deployment Requested: {{ 'Yes' if deploy_now | default(true) else 'No' }}
+{% if deployment_task_id is defined %}
+Deployment Task ID: {{ deployment_task_id }}
+{% endif %}
+
+{% if operation_type == 'create' %}
+VERIFICATION COMMANDS
+--------------------
+Login to device CLI and verify:
+> system support diagnostic-cli
+# show run interface {{ parent_interface }}.{{ vlan_id }}
+# show interface {{ parent_interface }}.{{ vlan_id }}
+# show cluster info
+{% endif %}
+
+{% if operation_type == 'delete' %}
+DELETION VERIFICATION
+--------------------
+Subinterface {{ parent_interface }}.{{ vlan_id }} has been removed.
+
+Verify deletion:
+> system support diagnostic-cli
+# show run interface {{ parent_interface }}.{{ vlan_id }}
+(Should return no output)
+{% endif %}
+
+================================================================================
+End of Report - {{ execution_id }}
+================================================================================

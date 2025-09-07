@@ -1,0 +1,51 @@
+---
+- name: Cisco FMC/FTD Automation Orchestrator
+  hosts: fmc
+  gather_facts: false
+  connection: httpapi
+
+  vars:
+    enable_rollback: true
+    # This map links a use_case to the correct consolidated role
+    role_map:
+      vlan_create: fmc_config
+      route_create: fmc_config
+      rule_disable: fmc_config
+      rule_delete: fmc_config
+      object_create: fmc_config
+      rule_create: fmc_config
+      report_connections: fmc_reporting
+      report_hardening: fmc_reporting
+      report_users: fmc_reporting
+      report_disabled_rules: fmc_reporting
+      report_objects: fmc_reporting
+      report_ace_counts: fmc_reporting
+      pre_post_report: fmc_reporting
+      troubleshoot_packet_tracer: fmc_troubleshooting
+      troubleshoot_tcpdump: fmc_troubleshooting
+
+  tasks:
+    - name: "Verifying that a role exists for use case: {{ use_case }}"
+      ansible.builtin.assert:
+        that:
+          - use_case in role_map
+        fail_msg: "The selected use case '{{ use_case }}' is not implemented or mapped correctly."
+
+    - name: Execute Workflow
+      block:
+        - name: Run Role Tasks
+          ansible.builtin.include_role:
+            name: "{{ role_map[use_case] }}"
+
+      rescue:
+        - name: Failure Detected, Initiating Rollback
+          when: enable_rollback and role_map[use_case] == 'fmc_config'
+          ansible.builtin.include_role:
+            name: fmc_config
+            tasks_from: rollback
+
+      always:
+        - name: Run Post-Checks and Notifications
+          ansible.builtin.include_role:
+            name: "{{ role_map[use_case] }}"
+            tasks_from: postcheck

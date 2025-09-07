@@ -1,0 +1,38 @@
+---
+# Import pre-check tasks first
+- import_tasks: pre-check.yml
+
+- name: Initialize capture results
+  ansible.builtin.set_fact:
+    capture_results: []
+    pcap_files: []
+
+# Loop through each cluster member
+- name: Process each cluster member
+  include_tasks: capture_on_device.yml
+  loop: "{{ cluster_members }}"
+  loop_control:
+    loop_var: device
+    label: "{{ device.name }}"
+
+- name: Wait for captures to complete
+  ansible.builtin.pause:
+    seconds: "{{ capture_duration | int }}"
+    prompt: "Waiting {{ capture_duration }} seconds for packet capture..."
+
+# Stop all captures and download files
+- name: Stop captures and download
+  include_tasks: stop_and_download.yml
+  loop: "{{ capture_results }}"
+  loop_control:
+    loop_var: capture
+    label: "{{ capture.device_name }}"
+
+- name: Save capture metadata
+  ansible.builtin.copy:
+    content: "{{ capture_results | to_nice_json }}"
+    dest: "/tmp/capture_metadata_{{ execution_id }}.json"
+  delegate_to: localhost
+
+# Import post-check tasks
+- import_tasks: post-check.yml

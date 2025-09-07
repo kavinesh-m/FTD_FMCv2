@@ -1,0 +1,21 @@
+---
+- name: Extract rules and filter disabled/time-based
+  cisco.fmc.fmc_configuration:
+    operation: get
+    path: "/policy/accesspolicies/{{ policy_name | default('') }}/accessrules"
+  register: rules
+
+- name: Export CSV
+  when: export_csv | default('yes') == 'yes'
+  ansible.builtin.copy:
+    dest: "disabled_timebased_rules_{{ uat_started_at }}.csv"
+    content: |
+      name,enabled,start_time,end_time
+      {% for r in (rules.json | default([])) %}
+      {% set enabled = r.enabled | default(true) %}
+      {% set st = r.get('timeRange',{}).get('startTime','') %}
+      {% set et = r.get('timeRange',{}).get('endTime','') %}
+      {% if not enabled or st or et %}
+      {{ r.name }},{{ enabled }},{{ st }},{{ et }}
+      {% endif %}
+      {% endfor %}

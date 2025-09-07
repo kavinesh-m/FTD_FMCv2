@@ -1,0 +1,191 @@
+---
+# roles/Connection_status/tasks/main.yml
+# Optimized for FMC 7.4.2/7.6.1 Connection Events
+
+- name: Build FMC base URL
+  delegate_to: localhost
+  ansible.builtin.set_fact:
+    fmc_base_url: "https://{{ ansible_host }}:{{ ansible_httpapi_port | default(443) }}"
+
+# 1) Auth
+- name: Authenticate with FMC
+  delegate_to: localhost
+  ansible.builtin.uri:
+    url: "{{ fmc_base_url }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 204
+  register: fmc_auth
+
+- name: Extract authentication tokens
+  delegate_to: localhost
+  ansible.builtin.set_fact:
+    fmc_token: "{{ fmc_auth.x_auth_access_token | default(fmc_auth.headers['X-auth-access-token']) }}"
+    domain_uuid: "{{ fmc_auth.domain_uuid       | default(fmc_auth.headers['DOMAIN_UUID']) }}"
+
+# ==== EVENTING QUERY FLOW (supported on 7.6.1) ====
+
+# 2) Create query (timeRange is required)
+- name: Create connectionevents query (eventing)
+  delegate_to: localhost
+  ansible.builtin.uri:
+    url: "{{ fmc_base_url }}/api/fmc_eventing/v1/domain/{{ domain_uuid }}/events/queries/connectionevents"
+    method: POST
+    headers:
+      X-auth-access-token: "{{ fmc_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      timeRange:
+        type: "last"
+        value: "{{ time_ranges[time_range | default('1hour')] | int }}"
+    validate_certs: false
+    status_code: 201
+  register: conn_query
+
+- name: Poll query until completed
+  delegate_to: localhost
+  ansible.builtin.uri:
+    url: "{{ fmc_base_url }}/api/fmc_eventing/v1/domain/{{ domain_uuid }}/events/queries/connectionevents/{{ conn_query.json.id }}"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_token }}"
+    validate_certs: false
+    status_code: 200
+  register: poll_result
+  retries: 20
+  delay: 2
+  until: >
+    poll_result.json.status is defined and
+    (poll_result.json.status | upper) in ['COMPLETED','SUCCESS'] or
+    (poll_result.json.percentComplete | default(0)) | int >= 100
+
+# 3) Fetch results (paged)
+- name: Get query results
+  delegate_to: localhost
+  ansible.builtin.uri:
+    url: "{{ fmc_base_url }}/api/fmc_eventing/v1/domain/{{ domain_uuid }}/events/queries/connectionevents/{{ conn_query.json.id }}/results?offset=0&limit={{ limit | default(100) | int }}"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_token }}"
+    validate_certs: false
+    status_code: 200
+    timeout: 60
+  register: connection_events
+
+# (optional) Legacy path if eventing is disabled
+- name: Fallback to legacy analysis API (optional)
+  when: connection_events.status | default(0) != 200
+  delegate_to: localhost
+  ansible.builtin.uri:
+    url: "{{ fmc_base_url }}/api/fmc_config/v1/domain/{{ domain_uuid }}/analysis/queries/connectionevents"
+    method: POST
+    headers:
+      X-auth-access-token: "{{ fmc_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      timeRange:
+        type: "last"
+        value: "{{ time_ranges[time_range | default('1hour')] | int }}"
+    validate_certs: false
+    status_code: 201
+  register: legacy_query
+
+- name: Poll legacy query
+  when: legacy_query is defined and legacy_query.status == 201
+  delegate_to: localhost
+  ansible.builtin.uri:
+    url: "{{ fmc_base_url }}/api/fmc_config/v1/domain/{{ domain_uuid }}/analysis/queries/connectionevents/{{ legacy_query.json.id }}"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_token }}"
+    validate_certs: false
+    status_code: 200
+  register: legacy_poll
+  retries: 20
+  delay: 2
+  until: >
+    legacy_poll.json.status is defined and
+    (legacy_poll.json.status | upper) in ['COMPLETED','SUCCESS']
+
+- name: Get legacy results
+  when: legacy_poll is defined and (legacy_poll.json.status | upper) in ['COMPLETED','SUCCESS']
+  delegate_to: localhost
+  ansible.builtin.uri:
+    url: "{{ fmc_base_url }}/api/fmc_config/v1/domain/{{ domain_uuid }}/analysis/queries/connectionevents/{{ legacy_query.json.id }}/results?offset=0&limit={{ limit | default(100) | int }}"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_token }}"
+    validate_certs: false
+    status_code: 200
+  register: legacy_results
+
+# 4) Normalize to your conn_rows format
+- name: Process connection data for CSV
+  delegate_to: localhost
+  ansible.builtin.set_fact:
+    _items: >-
+      {{
+        (connection_events.json.items
+          if connection_events.status|default(0) == 200 and connection_events.json.items is defined
+          else legacy_results.json.items | default([]))
+      }}
+    conn_rows: >-
+      {%- set out = [] -%}
+      {%- for e in _items -%}
+      {%- set _ = out.append({
+        'Protocol':           (e.protocol | upper | default('TCP')),
+        'SRC-INT':            e.ingressInterface | default(e.ingressSecurityZone | default('inside_zone')),
+        'SRC_IP':             e.initiatorIp | default(e.sourceIp | default('N/A')),
+        'SRC-PORT':           e.sourcePort   | default(''),
+        'DST-INT':            e.egressInterface | default(e.egressSecurityZone | default('outside_zone')),
+        'DST_IP':             e.responderIp | default(e.destinationIp | default('N/A')),
+        'DST-PORT':           e.destinationPort | default(''),
+        'FLAGS':              e.tcpFlags | default(e.action | default('Allow'))
+      }) -%}
+      {%- endfor -%}
+      {{ out if out|length > 0 else [] }}
+
+
+# Alternative: Direct SQL query if you have CLI access
+- name: Alternative - Get events via FMC CLI (if API fails)
+  when: 
+    - conn_rows | length == 1
+    - "'NO_REAL_DATA' in (conn_rows[0].Protocol | default(''))"
+  delegate_to: localhost
+  ansible.builtin.shell: |
+    sshpass -p "{{ fmc_cli_password | default(ansible_password) }}" \
+    ssh -o StrictHostKeyChecking=no {{ ansible_user }}@{{ ansible_host }} \
+    "echo 'select * from connection_log order by start_time desc limit 100;' | sudo su - sfreader -c 'mysql -D sfsnort'"
+  register: cli_events
+  failed_when: false
+  no_log: true
+
+# Generate CSV in client format
+- name: Create CSV file in client format
+  delegate_to: localhost
+  ansible.builtin.copy:
+    dest: "connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv"
+    content: |
+      Protocol,SRC-INT,SRC_IP,SRC-PORT,DST-INT,DST_IP,DST-PORT,FLAGS
+      {% for conn in conn_rows -%}
+      {{ conn.Protocol }},{{ conn['SRC-INT'] }},{{ conn.SRC_IP }},{{ conn['SRC-PORT'] }},{{ conn['DST-INT'] }},{{ conn.DST_IP }},{{ conn['DST-PORT'] }},{{ conn.FLAGS }}
+      {% endfor %}
+
+- name: Display results summary
+  delegate_to: localhost
+  ansible.builtin.debug:
+    msg: |
+      ===== CONNECTION EVENTS COLLECTION =====
+      Total Connections: {{ conn_rows | length }}
+      CSV Generated: connection_status_{{ inventory_hostname }}_{{ uat_started_at }}.csv
+      
+      Sample Data (first 5 rows):
+      {% for conn in conn_rows[:5] %}
+      {{ loop.index }}. {{ conn.Protocol }} | {{ conn.SRC_IP }}:{{ conn['SRC-PORT'] }} → {{ conn.DST_IP }}:{{ conn['DST-PORT'] }} | {{ conn.FLAGS }}
+      {% endfor %}
+      =====================================

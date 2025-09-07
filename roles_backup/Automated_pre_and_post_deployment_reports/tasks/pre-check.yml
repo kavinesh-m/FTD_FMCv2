@@ -1,0 +1,76 @@
+---
+# Display deployment report scope
+- name: Display deployment report scope
+  ansible.builtin.debug:
+    msg: "Starting Pre/Post Deployment Report Generation for FMC: {{ ansible_host }}"
+
+# Validate required inputs
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that:
+      - ansible_host is defined
+      - ansible_user is defined
+      - ansible_password is defined
+    fail_msg: "Missing required FMC connection parameters"
+    success_msg: "Input validation passed"
+
+# Validate email configuration if enabled
+- name: Validate email configuration if enabled
+  ansible.builtin.assert:
+    that:
+      - email_address | regex_search('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+      - smtp_username is defined
+      - smtp_password is defined
+    fail_msg: "Invalid email configuration"
+    success_msg: "Email configuration validated"
+  when: 
+    - send_to_email | default('no') | lower == 'yes'
+    - email_address | length > 0
+
+# Validate GitHub configuration if enabled
+- name: Validate GitHub configuration if enabled
+  ansible.builtin.assert:
+    that:
+      - github_repo_owner is defined
+      - github_repo_name is defined
+      - github_token is defined
+    fail_msg: "Missing GitHub configuration"
+    success_msg: "GitHub configuration validated"
+  when: store_to_repo | default('no') | lower == 'yes'
+
+# Test FMC connectivity
+- name: Test FMC connectivity
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 443
+    timeout: 10
+    state: started
+  delegate_to: localhost
+  register: fmc_connectivity
+
+# Store execution start time
+- name: Store execution start time
+  ansible.builtin.set_fact:
+    deployment_start_time: "{{ lookup('ansible.builtin.pipe', 'date +\"%Y-%m-%d %H:%M:%S\"') }}"
+    deployment_start_epoch: "{{ lookup('ansible.builtin.pipe', 'date +%s') }}"
+
+# Create temporary directory for reports
+- name: Create temporary directory for reports
+  ansible.builtin.file:
+    path: "/tmp/fmc_deployment_reports"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+# Display pre-check summary
+- name: Display pre-check summary
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "PRE-CHECK COMPLETED"
+      - "========================================="
+      - "FMC Host: {{ ansible_host }}"
+      - "Report ID: {{ execution_id }}"
+      - "Email Enabled: {{ 'Yes' if (send_to_email | default('no') | lower == 'yes') else 'No' }}"
+      - "GitHub Upload: {{ 'Yes' if (store_to_repo | default('no') | lower == 'yes') else 'No' }}"
+      - "========================================="

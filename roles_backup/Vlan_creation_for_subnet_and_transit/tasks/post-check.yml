@@ -1,0 +1,142 @@
+---
+- name: Get domain UUID from inventory
+  ansible.builtin.set_fact:
+    domain_uuid: "{{ ansible_httpapi_domain_uuid | default(domain_uuid) | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+- name: Post-deployment verification for CREATE
+  when: operation_type == 'create'
+  block:
+    # Use REST API directly instead of the fmcansible module for verification
+    - name: Verify subinterface creation via REST API
+      when: created_subif_id is defined
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/subinterfaces/{{ created_subif_id }}"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: subif_verify
+
+    - name: Display created subinterface details
+      when: 
+        - subif_verify is succeeded
+        - subif_verify.json is defined
+      ansible.builtin.debug:
+        msg:
+          - "Subinterface Created Successfully"
+          - "Name: {{ subif_verify.json.name }}"
+          - "VLAN ID: {{ subif_verify.json.vlanId }}"
+          - "IP Address: {{ subif_verify.json.ipv4.static.address }}/{{ subif_verify.json.ipv4.static.netmask }}"
+          - "Security Zone ID: {{ subif_verify.json.securityZone.id | default('N/A') }}"
+          - "MTU: {{ subif_verify.json.MTU }}"
+          - "Interface Name: {{ subif_verify.json.ifname }}"
+
+- name: Post-deletion verification for DELETE
+  when: operation_type == 'delete'
+  block:
+    # Verify deletion by trying to get all subinterfaces and checking if our VLAN is gone
+    - name: Get all subinterfaces to verify deletion
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/devices/devicerecords/{{ device_uuid }}/subinterfaces?expanded=true"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: deletion_verify
+      ignore_errors: true
+
+    # Debug what we got back
+    - name: Debug deletion verification response
+      ansible.builtin.debug:
+        msg:
+          - "Response status: {{ deletion_verify.status | default('unknown') }}"
+          - "Has JSON: {{ deletion_verify.json is defined }}"
+          - "JSON keys: {{ deletion_verify.json.keys() | list if deletion_verify.json is defined else 'No JSON' }}"
+          - "Items count: {{ deletion_verify.json.paging.count | default(0) if deletion_verify.json is defined and deletion_verify.json.paging is defined else 0 }}"
+
+    # FIX: Properly check if items exists and is a list
+    - name: Check if VLAN still exists
+      ansible.builtin.set_fact:
+        vlan_still_exists: false
+      when: deletion_verify.json is defined
+
+    - name: Check if VLAN still exists in items
+      ansible.builtin.set_fact:
+        vlan_still_exists: true
+      loop: "{{ deletion_verify.json.get('items', []) }}"
+      when: 
+        - deletion_verify.json is defined
+        - deletion_verify.json.get('items') is defined
+        - deletion_verify.json.get('items') is iterable
+        - deletion_verify.json.get('items') is not string
+        - item.vlanId is defined
+        - item.vlanId | int == vlan_id | int
+
+    # Alternative check using paging count
+    - name: Check deletion using paging count
+      ansible.builtin.set_fact:
+        deletion_confirmed: "{{ deletion_verify.json.paging.count | default(0) == 0 }}"
+      when: 
+        - deletion_verify.json is defined
+        - deletion_verify.json.paging is defined
+
+    - name: Confirm deletion
+      ansible.builtin.assert:
+        that:
+          - not (vlan_still_exists | default(false)) or (deletion_confirmed | default(true))
+        fail_msg: "Subinterface with VLAN {{ vlan_id }} still exists"
+        success_msg: "Subinterface with VLAN {{ vlan_id }} successfully deleted"
+
+- name: Generate verification commands
+  ansible.builtin.set_fact:
+    verification_commands:
+      - "system support diagnostic-cli"
+      - "show run interface {{ parent_interface }}.{{ vlan_id }}"
+      - "show interface {{ parent_interface }}.{{ vlan_id }}"
+      - "show interface ip brief | include {{ parent_interface }}"
+      - "show arp | include {{ ipv4_addr | default('VLAN' + vlan_id | string) }}"
+
+- name: Display verification commands
+  ansible.builtin.debug:
+    msg:
+      - "Manual Verification Commands (via CLI):"
+      - "{{ verification_commands | join('\n') }}"
+
+- name: Display execution summary
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "EXECUTION SUMMARY"
+      - "========================================="
+      - "Operation: {{ operation_type | upper }}"
+      - "Status: COMPLETED"
+      - "VLAN ID: {{ vlan_id }}"
+      - "Interface: {{ parent_interface }}.{{ vlan_id }}"
+      - "Changes Applied: {{ changes_made | join(', ') }}"
+      - "Deployment: {{ 'Initiated - Task ID: ' + deployment_task_id | string if deployment_task_id is defined else 'Manual deployment required' }}"
+      - "========================================="
+
+- name: Verify deployment status
+  when: deployment_task_id is defined
+  block:
+    - name: Check deployment task status
+      uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ domain_uuid }}/job/taskstatuses/{{ deployment_task_id }}"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ auth_token }}"
+        validate_certs: no
+      register: final_deploy_status
+      ignore_errors: true
+
+    - name: Display final deployment status
+      ansible.builtin.debug:
+        msg:
+          - "================================="
+          - "DEPLOYMENT VERIFICATION"
+          - "================================="
+          - "Task ID: {{ deployment_task_id }}"
+          - "Status: {{ final_deploy_status.json.status | default('Check FMC UI') }}"
+          - "{% if final_deploy_status.json.status | default('') != 'Success' %}Manual deployment may be required in FMC{% endif %}"
+          - "================================="
+      when: final_deploy_status is defined

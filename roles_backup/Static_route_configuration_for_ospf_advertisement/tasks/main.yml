@@ -1,0 +1,441 @@
+---
+# Initialize tracking variables
+- name: Initialize tracking variables
+  ansible.builtin.set_fact:
+    routes_modified: []
+    deployment_required: false
+
+# Get FMC authentication token
+- name: Authenticate with FMC
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/auth/generatetoken"
+    method: POST
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  register: fmc_auth
+
+- name: Set FMC tokens and domain
+  ansible.builtin.set_fact:
+    fmc_access_token: "{{ fmc_auth.x_auth_access_token }}"
+    fmc_refresh_token: "{{ fmc_auth.x_auth_refresh_token }}"
+    fmc_domain_uuid: "{{ fmc_auth.domain_uuid | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+# Get device UUID
+- name: Get device records
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: no
+  register: device_records
+
+- name: Find device UUID by name
+  ansible.builtin.set_fact:
+    device_uuid: "{{ item.id }}"
+  loop: "{{ device_records.json['items'] | default([]) }}"
+  when: item.name == cluster_name
+
+# Handle single route operation
+- name: Process single route operation
+  when: operation_type == 'single'
+  block:
+    - name: CREATE static route
+      when: route_action == 'create'
+      block:
+        - name: Check existing routes
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ device_uuid }}/routing/ipv4staticroutes"
+            method: GET
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+            validate_certs: no
+            status_code: [200, 404]
+          register: existing_routes
+
+        # Check if route exists
+        - name: Check if route exists
+          ansible.builtin.set_fact:
+            route_exists: false
+          
+        - name: Check for existing matching route
+          ansible.builtin.set_fact:
+            route_exists: true
+          loop: "{{ existing_routes.json.get('items', []) }}"
+          when: 
+            - existing_routes.status == 200
+            - existing_routes.json is defined
+            - item.selectedNetworks is defined
+            - item.selectedNetworks | length > 0
+            - item.selectedNetworks[0].value == route_network
+
+        - name: Display route existence check
+          ansible.builtin.debug:
+            msg: "Route for {{ route_network }} exists: {{ route_exists }}"
+
+        # Create network object with correct naming convention
+        - name: Create network object (ignore duplicate errors)
+          when: not route_exists
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/networks"
+            method: POST
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              type: "Network"
+              name: "n{{ route_network | replace('/', '_') }}"  # Creates n1.3.1.0_24
+              value: "{{ route_network }}"
+              description: "Network object for static route {{ route_network }}"
+              overridable: false
+            validate_certs: no
+            status_code: [201, 200, 400]
+          register: network_obj_result
+
+        # Create host object for gateway
+        - name: Create host object for gateway (ignore duplicate errors)
+          when: not route_exists
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/hosts"
+            method: POST
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              type: "Host"
+              name: "h{{ route_gateway }}"  # Creates h1.3.1.1
+              value: "{{ route_gateway }}/32"  # Host objects need /32
+              description: "Host object for gateway {{ route_gateway }}"
+              overridable: false
+            validate_certs: no
+            status_code: [201, 200, 400]
+          register: host_obj_result
+
+        # If network creation failed with 400 (duplicate), find the existing one
+        - name: Get all network objects
+          when: 
+            - not route_exists
+            - network_obj_result.status == 400
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/networks?limit=1000"
+            method: GET
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+            validate_certs: no
+          register: all_networks
+
+        # If host creation failed with 400 (duplicate), find the existing one
+        - name: Get all host objects
+          when: 
+            - not route_exists
+            - host_obj_result.status == 400
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/object/hosts?limit=1000"
+            method: GET
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+            validate_certs: no
+          register: all_hosts
+
+        - name: Set network name to search for
+          when:
+            - not route_exists
+            - network_obj_result.status == 400
+            - all_networks is succeeded
+          ansible.builtin.set_fact:
+            network_name_to_find: "n{{ route_network | replace('/', '_') }}"
+
+        - name: Set host name to search for
+          when:
+            - not route_exists
+            - host_obj_result.status == 400
+            - all_hosts is succeeded
+          ansible.builtin.set_fact:
+            host_name_to_find: "h{{ route_gateway }}"
+
+        - name: Find existing network object from list
+          when:
+            - not route_exists
+            - network_obj_result.status == 400
+            - all_networks is succeeded
+          ansible.builtin.set_fact:
+            matching_network: "{{ all_networks.json['items'] | selectattr('name', 'equalto', network_name_to_find) | first | default({}) }}"
+
+        - name: Find existing host object from list
+          when:
+            - not route_exists
+            - host_obj_result.status == 400
+            - all_hosts is succeeded
+          ansible.builtin.set_fact:
+            matching_host: "{{ all_hosts.json['items'] | selectattr('name', 'equalto', host_name_to_find) | first | default({}) }}"
+
+        # Set network reference - either from creation or search
+        - name: Set network object from creation
+          when:
+            - not route_exists
+            - network_obj_result.status in [200, 201]
+          ansible.builtin.set_fact:
+            network_obj_id: "{{ network_obj_result.json.id }}"
+            network_obj_type: "{{ network_obj_result.json.type }}"
+            network_obj_name: "{{ network_obj_result.json.name }}"
+
+        - name: Set network object from search
+          when:
+            - not route_exists
+            - network_obj_result.status == 400
+            - matching_network is defined
+            - matching_network != {}
+          ansible.builtin.set_fact:
+            network_obj_id: "{{ matching_network.id }}"
+            network_obj_type: "{{ matching_network.type }}"
+            network_obj_name: "{{ matching_network.name }}"
+
+        # Set host reference - either from creation or search
+        - name: Set host object from creation
+          when:
+            - not route_exists
+            - host_obj_result.status in [200, 201]
+          ansible.builtin.set_fact:
+            host_obj_id: "{{ host_obj_result.json.id }}"
+            host_obj_type: "{{ host_obj_result.json.type }}"
+            host_obj_name: "{{ host_obj_result.json.name }}"
+
+        - name: Set host object from search
+          when:
+            - not route_exists
+            - host_obj_result.status == 400
+            - matching_host is defined
+            - matching_host != {}
+          ansible.builtin.set_fact:
+            host_obj_id: "{{ matching_host.id }}"
+            host_obj_type: "{{ matching_host.type }}"
+            host_obj_name: "{{ matching_host.name }}"
+
+        - name: Display object info
+          when: 
+            - not route_exists
+            - network_obj_id is defined
+            - host_obj_id is defined
+          ansible.builtin.debug:
+            msg: 
+              - "Using network object: {{ network_obj_name }} ({{ network_obj_id }})"
+              - "Using host object: {{ host_obj_name }} ({{ host_obj_id }})"
+
+        - name: Get device subinterfaces
+          when: not route_exists
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ device_uuid }}/subinterfaces"
+            method: GET
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+            validate_certs: no
+            status_code: [200, 404]
+          register: device_subinterfaces
+          
+        - name: Display subinterfaces
+          when: not route_exists
+          ansible.builtin.debug:
+            var: device_subinterfaces.json
+
+        # Create static route with both network and host objects
+        - name: Create static route with network and host objects
+          when: 
+            - not route_exists
+            - network_obj_id is defined
+            - host_obj_id is defined
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ device_uuid }}/routing/ipv4staticroutes"
+            method: POST
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              type: "IPv4StaticRoute"
+              interfaceName: "{{ interface_name }}"
+              selectedNetworks:
+                - id: "{{ network_obj_id }}"
+                  type: "{{ network_obj_type }}"
+                  name: "{{ network_obj_name }}"
+              gateway:
+                object:  # Changed from 'literal' to 'object'
+                  id: "{{ host_obj_id }}"
+                  type: "{{ host_obj_type }}"
+                  name: "{{ host_obj_name }}"
+              metricValue: "{{ route_metric | int }}"
+              description: "Route for {{ route_network }} - OSPF Advertisement"
+            validate_certs: no
+            status_code: [201, 200]
+          register: created_route
+
+        - name: Track route creation
+          when: created_route is succeeded
+          ansible.builtin.set_fact:
+            routes_modified: "{{ routes_modified + [{'action': 'created', 'network': route_network, 'gateway': route_gateway}] }}"
+            deployment_required: true
+
+    - name: DELETE static route
+      when: route_action == 'delete'
+      block:
+        - name: Find routes to delete
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ device_uuid }}/routing/ipv4staticroutes"
+            method: GET
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+            validate_certs: no
+            status_code: [200, 404]
+          register: routes_list
+
+        - name: Initialize route_to_delete
+          ansible.builtin.set_fact:
+            route_to_delete: ""
+
+        # Get detailed info for each route to find the matching one
+        - name: Get detailed route information
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ device_uuid }}/routing/ipv4staticroutes/{{ item.id }}"
+            method: GET
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+            validate_certs: no
+          loop: "{{ routes_list.json.get('items', []) }}"
+          register: routes_details
+          when: routes_list.status == 200
+
+        - name: Debug route details
+          ansible.builtin.debug:
+            var: item.json
+          loop: "{{ routes_details.results | default([]) }}"
+          when: item.json is defined
+
+        # Match based on new naming convention
+        - name: Find matching route to delete
+          ansible.builtin.set_fact:
+            route_to_delete: "{{ item.json }}"
+          loop: "{{ routes_details.results | default([]) }}"
+          vars:
+            expected_network_name: "n{{ route_network | replace('/', '_') }}"
+          when:
+            - item.json is defined
+            - item.json.selectedNetworks is defined
+            - item.json.selectedNetworks | length > 0
+            - item.json.selectedNetworks[0].name == expected_network_name
+
+        - name: Store deleted route details for reporting
+          when: route_to_delete != ""
+          ansible.builtin.set_fact:
+            deleted_network_obj: "{{ route_to_delete.selectedNetworks[0].name if route_to_delete.selectedNetworks is defined else 'N/A' }}"
+            deleted_host_obj: "{{ route_to_delete.gateway.object.name if (route_to_delete.gateway.object is defined) else route_to_delete.gateway.literal.value | default('N/A') }}"
+
+        - name: Display route to delete
+          ansible.builtin.debug:
+            msg: 
+              - "Route to delete found: {{ route_to_delete.id | default('NOT FOUND') }}"
+              - "Network object name: {{ route_to_delete.selectedNetworks[0].name if route_to_delete != '' else 'N/A' }}"
+          when: route_to_delete is defined
+
+        - name: Delete route
+          when: route_to_delete != ""
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ device_uuid }}/routing/ipv4staticroutes/{{ route_to_delete.id }}"
+            method: DELETE
+            headers:
+              X-auth-access-token: "{{ fmc_access_token }}"
+            validate_certs: no
+            status_code: [200, 204]
+          register: deleted_route
+
+        - name: Track route deletion
+          when: 
+            - deleted_route is succeeded
+            - route_to_delete != ""  # Add this condition
+          ansible.builtin.set_fact:
+            routes_modified: "{{ routes_modified + [{'action': 'deleted', 'network': route_network}] }}"
+            deployment_required: true
+
+        - name: Warn if route not found
+          when: route_to_delete == ""
+          ansible.builtin.debug:
+            msg: "WARNING: Route {{ route_network }} not found - nothing to delete"
+
+# Deploy configuration if requested
+- name: Deploy configuration
+  when: 
+    - deploy_now | default('true') | string == 'true'
+    - deployment_required | default(false) | bool
+    - routes_modified | length > 0
+  block:
+    - name: Check deployable devices
+      ansible.builtin.uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/deployabledevices"
+        method: GET
+        headers:
+          X-auth-access-token: "{{ fmc_access_token }}"
+        validate_certs: no
+        status_code: [200, 404]
+      register: deployable_devices
+      ignore_errors: yes
+
+    - name: Initialize deployment variables
+      ansible.builtin.set_fact:
+        device_deployable: false
+        device_version: ""
+
+    - name: Check if device is deployable
+      ansible.builtin.set_fact:
+        device_deployable: true
+        device_version: "{{ item.version }}"
+      loop: "{{ deployable_devices.json.get('items', []) }}"
+      when:
+        - deployable_devices.status == 200
+        - item.name == cluster_name
+
+    - name: Initiate deployment
+      when: device_deployable
+      ansible.builtin.uri:
+        url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/deployment/deploymentrequests"
+        method: POST
+        headers:
+          X-auth-access-token: "{{ fmc_access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          type: "DeploymentRequest"
+          forceDeploy: false
+          ignoreWarning: true
+          version: "{{ device_version if device_version != '' else ansible_date_time.epoch }}"
+          deviceList:
+            - "{{ device_uuid }}"
+        validate_certs: no
+        status_code: [202, 200]
+      register: deployment_result
+
+    - name: Display deployment status
+      ansible.builtin.debug:
+        msg: "Deployment initiated - Task ID: {{ deployment_result.json.metadata.task.id | default('N/A') }}"
+      when: deployment_result is succeeded
+
+- name: Display summary
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "STATIC ROUTE CONFIGURATION SUMMARY"
+      - "========================================="
+      - "Device: {{ cluster_name }}"
+      - "Action: {{ route_action | upper }}"
+      - "Network: {{ route_network }}"
+      - "Gateway: {{ route_gateway }}"
+      - "Interface: {{ interface_name }}"
+      - "Metric: {{ route_metric }}"
+      - "{% if route_action == 'create' %}Objects Used:{% endif %}"
+      - "{% if route_action == 'create' %}  Network: {{ network_obj_name | default('N/A') }} ({{ 'Created' if network_obj_result.status in [200, 201] else 'Reused' }}){% endif %}"
+      - "{% if route_action == 'create' %}  Host: {{ host_obj_name | default('N/A') }} ({{ 'Created' if host_obj_result.status in [200, 201] else 'Reused' }}){% endif %}"
+      - "Routes Modified: {{ routes_modified | length }}"
+      - "Deployment: {{ 'Initiated' if (deploy_now | default('true') | string == 'true' and deployment_required) else 'Pending' }}"
+      - "========================================="

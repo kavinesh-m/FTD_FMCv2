@@ -1,0 +1,57 @@
+========================================
+FMC Static Route Configuration Report
+========================================
+Execution ID: {{ execution_id }}
+Date: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+Status: {{ execution_status | upper }}
+
+Device Information:
+-------------------
+FMC Host: {{ ansible_host }}
+Device Name: {{ cluster_name }}
+
+Operation Details:
+-----------------
+Action: {{ route_action | upper }}
+Network: {{ route_network }}
+Gateway: {{ route_gateway }}
+Interface: {{ interface_name }}
+Metric: {{ route_metric }}
+
+{% if route_action == 'create' %}
+Objects Used/Created:
+--------------------
+Network Object: {{ network_obj_name | default('N/A') }}
+  - Type: Network
+  - Value: {{ route_network }}
+  - Status: {{ 'Created' if network_obj_result.status in [200, 201] else 'Reused (already existed)' }}
+
+Host Object: {{ host_obj_name | default('N/A') }}
+  - Type: Host
+  - Value: {{ route_gateway }}/32
+  - Status: {{ 'Created' if host_obj_result.status in [200, 201] else 'Reused (already existed)' }}
+{% endif %}
+
+Routes Modified: {{ routes_modified | length }}
+{% for route in routes_modified %}
+  {{ loop.index }}. {{ route.action | upper }}: {{ route.network }}
+{% if route.gateway is defined %}
+     Gateway: {{ route.gateway }}
+{% endif %}
+{% endfor %}
+
+Deployment Status:
+-----------------
+Deployment Required: {{ deployment_required }}
+Deploy Now: {{ deploy_now }}
+{% if deployment_required and deploy_now == 'false' %}
+Status: Pending - Manual deployment required
+{% elif deployment_required and deploy_now == 'true' %}
+Status: Deployment initiated
+{% else %}
+Status: No deployment required
+{% endif %}
+
+========================================
+End of Report
+========================================

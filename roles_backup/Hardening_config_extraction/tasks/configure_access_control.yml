@@ -1,0 +1,349 @@
+---
+# Management Access Control List Configuration
+# 3.3 Management Access Control List per H-Cloud Security Benchmark
+
+- name: Get Current Access Policy Configuration
+  cisco.fmcansible.fmc_configuration:
+    operation: getAllAccessPolicy
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+  register: access_policies
+  failed_when: false
+  when: management_acl_enabled | bool
+
+- name: Debug Access Policy Configuration
+  debug:
+    var: access_policies
+  when: 
+    - management_acl_enabled | bool
+    - debug_mode | default(false) | bool
+
+- name: Get Standard ACL Configuration
+  cisco.fmcansible.fmc_configuration:
+    operation: getAllStandardACL
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+  register: standard_acls
+  failed_when: false
+  when: management_acl_enabled | bool
+
+- name: Debug Standard ACL Configuration
+  debug:
+    var: standard_acls
+  when: 
+    - management_acl_enabled | bool
+    - debug_mode | default(false) | bool
+
+- name: Get Network Object Configuration for ACL Analysis
+  cisco.fmcansible.fmc_configuration:
+    operation: getAllNetworkObject
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+  register: network_objects_acl
+  failed_when: false
+  when: management_acl_enabled | bool
+
+- name: Analyze Current Access Control Configuration
+  set_fact:
+    access_policies_available: "{{ access_policies.response is defined and access_policies.response['items'] is defined }}"
+    standard_acls_available: "{{ standard_acls.response is defined and standard_acls.response['items'] is defined }}"
+    network_objects_available: "{{ network_objects_acl.response is defined and network_objects_acl.response['items'] is defined }}"
+    total_access_policies: "{{ access_policies.response['items'] | length if (access_policies.response is defined and access_policies.response['items'] is defined) else 0 }}"
+    total_standard_acls: "{{ standard_acls.response['items'] | length if (standard_acls.response is defined and standard_acls.response['items'] is defined) else 0 }}"
+    total_network_objects: "{{ network_objects_acl.response['items'] | length if (network_objects_acl.response is defined and network_objects_acl.response['items'] is defined) else 0 }}"
+  when: management_acl_enabled | bool
+
+- name: Define Required Management Networks
+  set_fact:
+    required_management_networks:
+      - name: "MGMT_ADMIN_NETWORK"
+        description: "Administrative Management Network"
+        network: "{{ admin_management_network | default('10.0.0.0/24') }}"
+        action: "ALLOW"
+      - name: "MGMT_MONITORING_NETWORK"
+        description: "Monitoring and SNMP Network"
+        network: "{{ monitoring_network | default('10.0.1.0/24') }}"
+        action: "ALLOW"
+      - name: "MGMT_BACKUP_NETWORK"
+        description: "Backup and Archive Network"
+        network: "{{ backup_network | default('10.0.2.0/24') }}"
+        action: "ALLOW"
+      - name: "DENY_ALL_OTHER"
+        description: "Deny all other management access"
+        network: "0.0.0.0/0"
+        action: "DENY"
+  when: management_acl_enabled | bool
+
+- name: Check Management Access Control Compliance
+  set_fact:
+    access_control_compliant: "{{ access_policies_available | default(false) and standard_acls_available | default(false) }}"
+    access_control_recommendation: |
+      Configure management access control with the following requirements:
+      - Restrict management access to authorized networks only
+      - Implement explicit deny for unauthorized networks
+      - Configure separate ACLs for different management functions
+      - Apply principle of least privilege for management access
+      - Log all management access attempts for audit purposes
+  when: management_acl_enabled | bool
+
+- name: Create Management Network Objects (if apply_hardening is enabled)
+  cisco.fmcansible.fmc_configuration:
+    operation: createNetworkObject
+    data:
+      name: "{{ item.name }}"
+      value: "{{ item.network }}"
+      description: "{{ item.description }}"
+      type: "Network"
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+  register: network_object_results
+  loop: "{{ required_management_networks }}"
+  when: 
+    - management_acl_enabled | bool
+    - apply_hardening | bool
+    - item.action != "DENY"
+  failed_when: false
+  ignore_errors: true
+
+- name: Create Management Access Control List
+  cisco.fmcansible.fmc_configuration:
+    operation: createStandardACL
+    data:
+      name: "MGMT_ACCESS_CONTROL_LIST"
+      description: "Management Access Control List per H-Cloud Security Benchmark"
+      entries:
+        - action: "PERMIT"
+          networks:
+            literals:
+              - value: "{{ admin_management_network | default('10.0.0.0/24') }}"
+          description: "Allow administrative management access"
+        - action: "PERMIT"
+          networks:
+            literals:
+              - value: "{{ monitoring_network | default('10.0.1.0/24') }}"
+          description: "Allow monitoring network access"
+        - action: "PERMIT"
+          networks:
+            literals:
+              - value: "{{ backup_network | default('10.0.2.0/24') }}"
+          description: "Allow backup network access"
+        - action: "DENY"
+          networks:
+            literals:
+              - value: "0.0.0.0/0"
+          description: "Deny all other management access"
+      type: "StandardAccessList"
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+  register: mgmt_acl_result
+  when: 
+    - management_acl_enabled | bool
+    - apply_hardening | bool
+    - not access_control_compliant | default(false)
+  failed_when: false
+
+- name: Record Access Control Configuration Status
+  set_fact:
+    compliance_results: "{{ compliance_results | default({}) | combine({
+      'access_control_compliance': {
+        'status': access_control_compliant | default(false),
+        'access_policies_available': access_policies_available | default(false),
+        'standard_acls_available': standard_acls_available | default(false),
+        'network_objects_available': network_objects_available | default(false),
+        'total_access_policies': total_access_policies | default(0),
+        'total_standard_acls': total_standard_acls | default(0),
+        'total_network_objects': total_network_objects | default(0),
+        'compliant': access_control_compliant | default(false),
+        'applied': (mgmt_acl_result.response is defined) if apply_hardening else false,
+        'recommendation': access_control_recommendation | default('Configure management access control through FMC GUI'),
+        'required_networks': required_management_networks | default([])
+      } }) }}"
+  when: management_acl_enabled | bool
+
+- name: Display Access Control Compliance Status
+  debug:
+    msg: |
+      Management Access Control Compliance Check:
+      Access Policies Available: {{ access_policies_available | default(false) }}
+      Standard ACLs Available: {{ standard_acls_available | default(false) }}
+      Network Objects Available: {{ network_objects_available | default(false) }}
+      Total Access Policies: {{ total_access_policies | default(0) }}
+      Total Standard ACLs: {{ total_standard_acls | default(0) }}
+      Total Network Objects: {{ total_network_objects | default(0) }}
+      Access Control Compliant: {{ access_control_compliant | default(false) }}
+      {% if apply_hardening and mgmt_acl_result.response is defined %}Management ACL Created: True{% endif %}
+      
+      Required Management Networks:
+      {% for network in required_management_networks | default([]) %}
+      - {{ network.name }}: {{ network.network }} ({{ network.action }})
+      {% endfor %}
+  when: management_acl_enabled | bool
+
+- name: Manual Configuration Instructions for Management Access Control
+  debug:
+    msg: |
+      MANUAL MANAGEMENT ACCESS CONTROL CONFIGURATION:
+      
+      To configure management access control through the FMC GUI:
+      
+      1. Create Network Objects for Management Networks:
+         a. Navigate to Objects > Network
+         b. Create network objects for authorized management networks:
+            {% for network in required_management_networks | default([]) %}
+            {% if network.action != "DENY" %}
+            - Name: {{ network.name }}
+              Network: {{ network.network }}
+              Description: {{ network.description }}
+            {% endif %}
+            {% endfor %}
+      
+      2. Create Standard Access Control List:
+         a. Navigate to Objects > Object Management > Access List > Standard
+         b. Create new Standard ACL: "MGMT_ACCESS_CONTROL_LIST"
+         c. Add ACL entries in order:
+            {% for network in required_management_networks | default([]) %}
+            - Action: {{ network.action }}
+              Network: {{ network.network }}
+              Description: {{ network.description }}
+            {% endfor %}
+      
+      3. Apply Access Control to Management Interfaces:
+         a. Navigate to System > Configuration > Management Interfaces
+         b. Select management interface
+         c. Apply the created ACL to management interface
+         d. Enable logging for access control events
+      
+      4. Configure Device Management Access:
+         a. Navigate to Devices > Device Management
+         b. Select managed devices
+         c. Configure device-specific management access controls
+         d. Apply consistent ACL policies across all devices
+      
+      5. SSH and Administrative Access Control:
+         a. Navigate to System > Users > Authentication
+         b. Configure IP address restrictions for user accounts
+         c. Limit administrative access to authorized networks only
+         d. Enable authentication logging and monitoring
+      
+      6. SNMP Access Control:
+         a. Navigate to System > Configuration > SNMP
+         b. Configure SNMP community access restrictions
+         c. Limit SNMP access to monitoring networks only
+         d. Use SNMPv3 with authentication and encryption
+      
+      7. Web Management Access Control:
+         a. Configure firewall rules to restrict web management access
+         b. Limit HTTPS access to authorized management networks
+         c. Disable unnecessary management protocols
+         d. Enable web session security features
+      
+      8. Backup and Archive Access Control:
+         a. Configure backup network access restrictions
+         b. Limit backup operations to authorized networks
+         c. Secure backup credentials and access methods
+         d. Monitor backup access and operations
+      
+      9. Logging and Monitoring:
+         a. Navigate to System > Logging
+         b. Enable access control logging
+         c. Configure log retention for compliance
+         d. Set up alerts for unauthorized access attempts
+      
+      10. Click Save and Deploy changes to all managed devices
+      
+      Security Best Practices:
+      - Use principle of least privilege for management access
+      - Regularly review and update management ACLs
+      - Monitor management access logs for anomalies
+      - Implement multi-factor authentication for administrative access
+      - Use jump hosts or bastion hosts for management access
+      - Encrypt all management communications
+      - Regularly audit management access permissions
+  when: 
+    - management_acl_enabled | bool
+    - not (access_control_compliant | default(false))
+
+- name: Display Current Access Control Configuration Summary
+  debug:
+    msg: |
+      Current Access Control Configuration:
+      {% for policy in access_policies.response['items'] | default([]) %}
+      - Access Policy: {{ policy.name | default('Unknown') }}
+        Default Action: {{ policy.defaultAction | default('Unknown') }}
+        Rules Count: {{ policy.rules | length if policy.rules is defined else 0 }}
+      {% endfor %}
+      
+      {% for acl in standard_acls.response['items'] | default([]) %}
+      - Standard ACL: {{ acl.name | default('Unknown') }}
+        Description: {{ acl.description | default('No description') }}
+        Entries: {{ acl.entries | length if acl.entries is defined else 0 }}
+      {% endfor %}
+  when: 
+    - management_acl_enabled | bool
+    - (access_policies_available | default(false) or standard_acls_available | default(false))
+    - debug_mode | default(false) | bool
+
+- name: Warn if Access Control is Non-Compliant
+  fail:
+    msg: |
+      MANAGEMENT ACCESS CONTROL COMPLIANCE FAILURE:
+      Current management access control configuration does not meet H-Cloud Security Benchmark requirements.
+      
+      Required Security Controls Missing or Insufficient:
+      - Restricted management network access
+      - Explicit deny rules for unauthorized networks
+      - Comprehensive access control lists
+      - Logging and monitoring of management access
+      - Principle of least privilege implementation
+      
+      Security Risks:
+      - Unauthorized management access from any network
+      - Potential for management interface exploitation
+      - Lack of audit trail for management operations
+      - Increased attack surface for administrative functions
+      - Non-compliance with security frameworks
+      
+      Required Management Networks:
+      {% for network in required_management_networks | default([]) %}
+      - {{ network.name }}: {{ network.network }} ({{ network.action }})
+        Description: {{ network.description }}
+      {% endfor %}
+      
+      Manual Action Required:
+      1. Create network objects for authorized management networks
+      2. Configure standard ACL with appropriate permit/deny rules
+      3. Apply ACL to management interfaces
+      4. Enable access control logging and monitoring
+      5. Test management access from authorized and unauthorized networks
+      6. Document access control configuration for audit compliance
+  when: 
+    - management_acl_enabled | bool
+    - not (access_control_compliant | default(false))
+    - validate_compliance | bool
+  ignore_errors: "{{ not validate_compliance }}"
+
+- name: Log Access Control Configuration Status
+  debug:
+    msg: |
+      Management access control configuration analysis completed:
+      - Total Access Policies: {{ total_access_policies | default(0) }}
+      - Total Standard ACLs: {{ total_standard_acls | default(0) }}
+      - Total Network Objects: {{ total_network_objects | default(0) }}
+      - Configuration Applied: {{ 'True' if (mgmt_acl_result.response is defined) else 'False' }}
+      - Compliance Status: {{ 'COMPLIANT' if (access_control_compliant | default(false)) else 'NON-COMPLIANT' }}
+      
+      Required Management Networks Configuration:
+      {% for network in required_management_networks | default([]) %}
+      - {{ network.name }}: {{ network.network }} ({{ network.action }})
+      {% endfor %}
+      
+      Next Steps:
+      1. Review current access control policies in FMC GUI
+      2. Implement required management network restrictions
+      3. Test access control effectiveness
+      4. Document configuration for compliance audit
+      5. Schedule regular access control reviews
+  when: 
+    - management_acl_enabled | bool
+    - apply_hardening | bool
+

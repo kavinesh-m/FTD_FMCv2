@@ -1,0 +1,19 @@
+---
+- name: Collect key verification commands (CLI path)
+  ansible.netcommon.cli_command:
+    command: "{ item }"
+  loop: ["system support diagnostic-cli \"show access-list\""]
+  register: verify_out
+  ignore_errors: true
+  changed_when: false
+
+- name: Show verification snippets
+  ansible.builtin.debug:
+    msg: "{ item.item } -> { (item.stdout | default(''))[:400] }"
+  loop: "{ verify_out.results | default([]) }"
+
+- name: Friendly UAT summary
+  ansible.builtin.debug:
+    msg:
+      - "ACE counts exported."
+      - "Started at: { uat_started_at | default('unknown') }"

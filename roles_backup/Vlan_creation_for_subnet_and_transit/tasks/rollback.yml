@@ -1,0 +1,68 @@
+---
+- name: Rollback initiated
+  ansible.builtin.debug:
+    msg: 
+      - "ROLLBACK INITIATED"
+      - "Changes to revert: {{ changes_made }}"
+
+- name: Get domain UUID from inventory
+  ansible.builtin.set_fact:
+    domain_uuid: "{{ ansible_httpapi_domain_uuid | default(domain_uuid) | default('e276abec-e0f2-11e3-8169-6d9ed49b625f') }}"
+
+- name: Rollback subinterface creation
+  when:
+    - "'subinterface_created' in changes_made"
+    - created_subif_id is defined
+  cisco.fmcansible.fmc_configuration:
+    operation: deleteSubInterface
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+      containerUUID: "{{ device_uuid }}"
+      objectId: "{{ created_subif_id }}"
+  register: subif_rollback
+  ignore_errors: true
+
+- name: Log rollback status
+  when: subif_rollback is defined
+  ansible.builtin.debug:
+    msg: "Subinterface rollback: {{ 'Success' if subif_rollback is succeeded else 'Failed' }}"
+
+- name: Initiate deployment rollback if needed
+  when: 
+    - "'deployment_initiated' in changes_made"
+    - deploy_now | default(true) | bool
+  cisco.fmcansible.fmc_configuration:
+    operation: createDeployableDevice
+    path_params:
+      domainUUID: "{{ domain_uuid }}"
+    data:
+      type: "DeploymentRequest"
+      forceDeploy: true
+      ignoreWarning: true
+      version: "{{ ansible_date_time.epoch }}_rollback"
+      deviceList:
+        - "{{ device_uuid | default(device_name) }}"
+  register: rollback_deployment
+  ignore_errors: true
+
+- name: Generate rollback report
+  ansible.builtin.set_fact:
+    rollback_report:
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      execution_id: "{{ execution_id }}"
+      changes_attempted: "{{ changes_made }}"
+      rollback_status: "{{ 'completed' if subif_rollback is succeeded else 'manual_intervention_required' }}"
+
+- name: Save rollback report
+  ansible.builtin.copy:
+    content: "{{ rollback_report | to_nice_yaml }}"
+    dest: "/tmp/fmc_vlan_rollback_{{ execution_id }}.yml"
+  delegate_to: localhost
+  ignore_errors: true
+
+- name: Display rollback summary
+  ansible.builtin.debug:
+    msg:
+      - "ROLLBACK SUMMARY"
+      - "Execution ID: {{ execution_id }}"
+      - "Report saved: /tmp/fmc_vlan_rollback_{{ execution_id }}.yml"

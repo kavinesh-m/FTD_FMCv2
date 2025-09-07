@@ -1,0 +1,26 @@
+=========================================
+FMC RULE / OBJECT CREATION REPORT
+=========================================
+Report ID: 20250906_125448
+Generated: 2025-09-06 12:56:26
+Policy:    Basic policy
+Rule:      UAT_ALLOW_HTTPS
+Action:    ALLOW
+=========================================
+
+SOURCE OBJECTS:
+  
+
+DESTINATION OBJECTS:
+  
+
+SERVICE OBJECTS:
+  HTTPS
+
+
+
+Artifacts:
+- rule_payload_20250906_125448.json
+
+End of report
+=========================================

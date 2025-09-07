@@ -1,0 +1,18 @@
+---
+# Rollback tasks for fmc_config role
+
+- name: ROLLBACK - Firewall Rule
+  when: use_case == 'rule_create'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Firewall_rule_creation/tasks/rollback.yml'
+
+- name: ROLLBACK - VLAN
+  when: use_case == 'vlan_create'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Vlan_creation_for_subnet_and_transit/tasks/rollback.yml'
+
+- name: ROLLBACK - Static Route
+  when: use_case == 'route_create'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Static_route_configuration_for_ospf_advertisement/tasks/rollback.yml'
+
+- name: ROLLBACK - Rule Disable or Deletion
+  when: use_case == 'rule_disable' or use_case == 'rule_delete'
+  ansible.builtin.include_tasks: '{{ playbook_dir }}/roles_backup/Rule_disable_and_deletion/tasks/rollback.yml'

@@ -1,0 +1,38 @@
+=========================================
+TCPDUMP CAPTURE REPORT
+=========================================
+Execution ID: {{ execution_id }}
+Date: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+=========================================
+
+CLUSTER INFORMATION
+-------------------
+Cluster Name: {{ cluster_name }}
+Total Devices: {{ cluster_name | length }}
+
+DEVICES PROCESSED
+-----------------
+{% for member in cluster_name %}
+  - {{ member.name }} ({{ member.id }})
+{% endfor %}
+
+CAPTURE DETAILS
+---------------
+Interfaces: {{ interface_list | join(', ') }}
+Duration: {{ capture_duration }} seconds
+Filter: {{ capture_filter | default('None') }}
+
+PCAP FILES GENERATED
+--------------------
+{% for file in pcap_files %}
+  - {{ file | basename }}
+{% endfor %}
+
+DELIVERY STATUS
+---------------
+Email: {{ 'Sent to ' + email_recipient if send_to_email | lower == 'yes' else 'Not sent' }}
+Repository: {{ 'Uploaded' if store_to_repo | lower == 'yes' else 'Not uploaded' }}
+
+=========================================
+END OF REPORT
+=========================================

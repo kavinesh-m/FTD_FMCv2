@@ -1,0 +1,69 @@
+---
+- name: Verify all captures completed
+  ansible.builtin.debug:
+    msg:
+      - "Capture completed for cluster: {{ cluster_name }}"
+      - "Devices processed: {{ cluster_members | map(attribute='name') | list }}"
+      - "Interfaces captured: {{ interface_list }}"
+      - "PCAP files: {{ pcap_files | default([]) }}"
+
+- name: Generate capture report
+  ansible.builtin.template:
+    src: capture_report.j2
+    dest: "/tmp/capture_report_{{ execution_id }}.txt"
+  delegate_to: localhost
+
+# Email notification
+- name: Send email with PCAP files
+  when:
+    - send_to_email | lower == 'yes'
+    - email_recipient | length > 0
+  ansible.builtin.mail:
+    host: "{{ smtp_host | default('smtp.gmail.com') }}"
+    port: "{{ smtp_port | default(587) }}"
+    username: "{{ smtp_username }}"
+    password: "{{ smtp_password }}"
+    from: "{{ smtp_username }}"
+    to: "{{ email_recipient }}"
+    subject: "FMC TCPDUMP Capture - {{ cluster_name }} - {{ execution_id }}"
+    body: |
+      TCPDUMP Capture Completed
+      =========================
+      Cluster: {{ cluster_name }}
+      Interfaces: {{ interface_list | join(', ') }}
+      Duration: {{ capture_duration }} seconds
+      Timestamp: {{ execution_id }}
+      
+      PCAP files attached.
+    attach: "{{ pcap_files + ['/tmp/capture_report_' + execution_id + '.txt'] }}"
+    secure: "starttls"
+  delegate_to: localhost
+  register: email_result
+  failed_when: false
+
+# GitHub upload
+- name: Upload to GitHub repository
+  when:
+    - store_to_repo | lower == 'yes'
+    - github_token is defined
+  block:
+    - name: Create base64 encoded content
+      ansible.builtin.set_fact:
+        pcap_b64: "{{ lookup('file', item) | b64encode }}"
+      loop: "{{ pcap_files }}"
+      register: encoded_files
+
+    - name: Upload to GitHub
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ github_repo_owner }}/{{ github_repo_name }}/contents/tcpdump/{{ execution_id }}/{{ item | basename }}"
+        method: PUT
+        headers:
+          Authorization: "token {{ github_token }}"
+        body_format: json
+        body:
+          message: "TCPDUMP capture - {{ cluster_name }} - {{ execution_id }}"
+          content: "{{ lookup('file', item) | b64encode }}"
+          branch: "{{ github_branch | default('main') }}"
+      loop: "{{ pcap_files }}"
+      delegate_to: localhost
+      failed_when: false

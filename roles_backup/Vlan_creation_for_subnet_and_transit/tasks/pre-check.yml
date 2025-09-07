@@ -1,0 +1,54 @@
+---
+- name: Display operation type
+  ansible.builtin.debug:
+    msg: "Operation Type: {{ operation_type }} for VLAN {{ vlan_id }}"
+
+- name: Validate required inputs
+  ansible.builtin.assert:
+    that:
+      - operation_type in ['create', 'delete']
+      - device_name is defined and device_name | length > 0
+      - vlan_id is defined and vlan_id | int > 0 and vlan_id | int <= 4094
+      - parent_interface is defined and parent_interface | length > 0
+    fail_msg: "Missing or invalid required inputs"
+    success_msg: "Basic input validation passed"
+
+- name: Validate CREATE specific inputs
+  when: operation_type == 'create'
+  block:
+    - name: Handle zone_name format (convert list to string if needed)
+      ansible.builtin.set_fact:
+        zone_name_clean: "{{ zone_name[0] if zone_name is sequence and zone_name is not string else zone_name }}"
+
+    - name: Validate processed inputs
+      ansible.builtin.assert:
+        that:
+          - zone_name is defined
+          - zone_name_clean | length > 0
+          - ipv4_address is defined
+          - ipv4_address | ansible.utils.ipaddr('network')
+        fail_msg: "Missing or invalid CREATE operation inputs. IPv4 address must be in CIDR notation (e.g., 10.20.30.21/24)"
+
+- name: Validate optional IPv6 configuration
+  when: 
+    - operation_type == 'create'
+    - enable_ipv6 | default(false) | bool
+  ansible.builtin.assert:
+    that:
+      - ipv6_address is defined
+      - ipv6_address | ansible.utils.ipaddr('network')
+    fail_msg: "IPv6 enabled but missing or invalid IPv6 address. Must be in CIDR notation (e.g., 2001:db8::1/64)"
+
+- name: Store execution timestamp
+  ansible.builtin.set_fact:
+    execution_timestamp: "{{ lookup('ansible.builtin.pipe', 'date +%Y%m%d_%H%M%S') }}"
+
+- name: Display pre-check summary
+  ansible.builtin.debug:
+    msg:
+      - "Pre-check completed successfully"
+      - "Device Name: {{ device_name }}"
+      - "Operation: {{ operation_type }}"
+      - "VLAN ID: {{ vlan_id }}"
+      - "Parent Interface: {{ parent_interface }}"
+      - "Timestamp: {{ execution_timestamp }}"

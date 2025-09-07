@@ -1,0 +1,40 @@
+---
+- name: Get FMC server version
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_platform/v1/info/serverversion"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: false
+  register: fmc_version_response
+
+- name: Display FMC version information
+  ansible.builtin.debug:
+    var: fmc_version_response.json.items[0]
+
+- name: Extract version details
+  ansible.builtin.set_fact:
+    fmc_server_version: "{{ fmc_version_response.json.items[0].serverVersion }}"
+    fmc_model: "{{ fmc_version_response.json.items[0].model }}"
+
+- name: Show extracted version info
+  ansible.builtin.debug:
+    msg:
+      - "FMC Version: {{ fmc_server_version | default('Unknown') }}"
+      - "Model: {{ fmc_model | default('Unknown') }}"
+
+- name: Check available operational endpoints
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}/api/fmc_config/v1/domain/{{ fmc_domain_uuid }}/devices/devicerecords/{{ device.id }}/operational"
+    method: GET
+    headers:
+      X-auth-access-token: "{{ fmc_access_token }}"
+    validate_certs: false
+    status_code: [200, 404, 405]
+  register: operational_endpoints
+  failed_when: false
+
+- name: Display operational capabilities
+  ansible.builtin.debug:
+    var: operational_endpoints
+    

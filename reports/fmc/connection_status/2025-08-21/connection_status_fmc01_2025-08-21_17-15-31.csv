@@ -1,0 +1,2 @@
+Protocol,SRC-INT,SRC_IP,SRC-PORT,DST-INT,DST_IP,DST_PORT,FLAGS
+NO_REAL_DATA,Approach1: NOT_TESTED,Approach2: NOT_TESTED,Approach3: NOT_TESTED,Direct SSH,FMC CLI,REST API,Test approaches and use working method
